@@ -5,14 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>✨ AI 기반 3D 프랙탈 아트 (스토리 & 애니메이션 생성)</title>
-    
-    <!-- Favicon 설정 -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
-    <meta name="theme-color" content="#0f0f23">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -211,11 +203,21 @@
         #generateButton:hover, #saveToLibraryButton:hover {
             background-color: #2563eb; 
         }
+        #generateButton:disabled {
+            background-color: #374151;
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
         #saveToLibraryButton {
              background-color: #10b981; 
         }
         #saveToLibraryButton:hover {
             background-color: #059669; 
+        }
+         #saveToLibraryButton:disabled {
+            background-color: #374151;
+            opacity: 0.7;
+            cursor: not-allowed;
         }
         #saveToLibraryButton svg {
             width: 1.25em; 
@@ -593,8 +595,8 @@
         }
 
         function saveCurrentFractal() {
-            if (generateButton.disabled) { 
-                showError("현재 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.");
+            if (saveToLibraryButton.disabled) { 
+                showError("현재 작업이 진행 중이거나 저장할 수 없는 상태입니다.");
                 return;
             }
 
@@ -786,13 +788,6 @@
                             newEntry.id = Date.now().toString() + Math.random().toString(36).substring(2,7); // New unique ID
                             newEntry.savedAt = new Date().toISOString(); // Update savedAt timestamp
                             
-                            // Prevent exact name duplicates if desired, or allow them
-                            // For simplicity, we'll allow them with new IDs.
-                            // If you want to prevent name duplicates:
-                            // if (fractalLibrary.some(existing => existing.name === newEntry.name)) {
-                            //    newEntry.name = `${newEntry.name} (가져옴 ${new Date().toLocaleTimeString('ko-KR')})`;
-                            // }
-
                             fractalLibrary.push(newEntry);
                             importedCount++;
                         } else {
@@ -920,19 +915,19 @@
             if (envKeyPresent) {
                 keyToUse = envApiKey;
                 keySource = "환경 변수";
-                apiKeyInput.value = keyToUse;
+                if(apiKeyInput) apiKeyInput.value = keyToUse;
             } else {
                 keyToUse = localStorage.getItem(GEMINI_API_KEY_LOCAL_STORAGE_KEY);
                 if (keyToUse) {
                     keySource = "로컬 저장소";
-                    apiKeyInput.value = keyToUse;
+                    if(apiKeyInput) apiKeyInput.value = keyToUse;
                 } else {
                     keySource = "사용자 입력 필요";
                 }
-                apiKeyInput.disabled = false;
-                apiKeyInput.removeAttribute('readonly');
-                saveApiKeyButton.disabled = false;
-                saveApiKeyButton.textContent = "키 저장";
+                if(apiKeyInput) apiKeyInput.disabled = false;
+                if(apiKeyInput) apiKeyInput.removeAttribute('readonly');
+                if(saveApiKeyButton) saveApiKeyButton.disabled = false;
+                if(saveApiKeyButton) saveApiKeyButton.textContent = "키 저장";
             }
 
             if (keyToUse && keySource !== "사용자 입력 필요") {
@@ -940,35 +935,37 @@
                     ai = new GoogleGenAI({ apiKey: keyToUse });
                     currentApiKey = keyToUse;
                     console.log(`Gemini AI SDK가 ${keySource}의 API 키로 성공적으로 초기화되었습니다.`);
-                    promptInput.disabled = false;
-                    generateButton.disabled = false;
-                     saveToLibraryButton.disabled = false;
+                    if(promptInput) promptInput.disabled = false;
+                    if(generateButton) generateButton.disabled = false;
+                    // saveToLibraryButton should remain enabled or its state handled by setLoadingState
+                    if(applyParamsToTitleButton) applyParamsToTitleButton.disabled = false;
                     
                     if (envKeyPresent) {
-                        apiKeyInput.setAttribute('readonly', 'true');
-                        saveApiKeyButton.textContent = "환경 키 사용중";
-                        saveApiKeyButton.disabled = true;
+                        if(apiKeyInput) apiKeyInput.setAttribute('readonly', 'true');
+                        if(saveApiKeyButton) saveApiKeyButton.textContent = "환경 키 사용중";
+                        if(saveApiKeyButton) saveApiKeyButton.disabled = true;
                         showError(`환경 변수의 API 키를 사용 중입니다. (${keyToUse.substring(0,4)}...)`, true);
                     } else { 
-                        saveApiKeyButton.textContent = "키 변경";
-                        apiKeyInput.removeAttribute('readonly');
-                        apiKeyInput.disabled = false;
-                        saveApiKeyButton.disabled = false;
+                        if(saveApiKeyButton) saveApiKeyButton.textContent = "키 변경";
+                        if(apiKeyInput) apiKeyInput.removeAttribute('readonly');
+                        if(apiKeyInput) apiKeyInput.disabled = false;
+                        if(saveApiKeyButton) saveApiKeyButton.disabled = false;
                          showError(`저장된 API 키를 사용 중입니다. (${keyToUse.substring(0,4)}...)`, true);
                     }
                 } catch (e) {
                     showError(`(${keySource} 키) Gemini AI SDK 초기화 실패: ${e.message}`);
                     ai = null;
                     currentApiKey = null;
-                    promptInput.disabled = true;
-                    generateButton.disabled = true;
-                    saveToLibraryButton.disabled = true;
-                    apiKeyInput.removeAttribute('readonly');
-                    apiKeyInput.disabled = false;
-                    saveApiKeyButton.disabled = false;
-                    saveApiKeyButton.textContent = "키 저장";
+                    if(promptInput) promptInput.disabled = true;
+                    if(generateButton) generateButton.disabled = true;
+                    if(applyParamsToTitleButton) applyParamsToTitleButton.disabled = true;
+
+                    if(apiKeyInput) apiKeyInput.removeAttribute('readonly');
+                    if(apiKeyInput) apiKeyInput.disabled = false;
+                    if(saveApiKeyButton) saveApiKeyButton.disabled = false;
+                    if(saveApiKeyButton) saveApiKeyButton.textContent = "키 저장";
                     if (envKeyPresent) {
-                        apiKeyInput.value = ""; 
+                        if(apiKeyInput) apiKeyInput.value = ""; 
                         showError(`환경 변수 API 키가 유효하지 않습니다. 새 키를 입력해주세요.`);
                     } else {
                         showError(`저장된 API 키가 유효하지 않습니다. 새 키를 입력해주세요.`);
@@ -977,16 +974,20 @@
             } else { 
                 if (!envKeyPresent) {
                     showError("API 키가 없습니다. API 키를 입력하고 저장해주세요.");
-                    apiKeyInput.placeholder = "여기에 API 키를 입력하세요";
+                    if(apiKeyInput) apiKeyInput.placeholder = "여기에 API 키를 입력하세요";
                 }
-                promptInput.disabled = true;
-                generateButton.disabled = true;
-                saveToLibraryButton.disabled = true;
-                apiKeyInput.removeAttribute('readonly');
-                apiKeyInput.disabled = false;
-                saveApiKeyButton.disabled = false;
-                saveApiKeyButton.textContent = "키 저장";
+                if(promptInput) promptInput.disabled = true;
+                if(generateButton) generateButton.disabled = true;
+                if(applyParamsToTitleButton) applyParamsToTitleButton.disabled = true;
+
+                if(apiKeyInput) apiKeyInput.removeAttribute('readonly');
+                if(apiKeyInput) apiKeyInput.disabled = false;
+                if(saveApiKeyButton) saveApiKeyButton.disabled = false;
+                if(saveApiKeyButton) saveApiKeyButton.textContent = "키 저장";
             }
+            // Ensure saveToLibraryButton is enabled if not loading, regardless of AI state.
+            // setLoadingState will handle the overall loading state.
+             if(saveToLibraryButton) saveToLibraryButton.disabled = false;
             setLoadingState(false); 
         }
 
@@ -1012,26 +1013,30 @@
                 console.log("새 API 키가 저장되고 AI가 성공적으로 초기화되었습니다.");
                 showError(`API 키 (${userKey.substring(0,4)}...)가 저장되고 적용되었습니다.`, true);
                 
-                promptInput.disabled = false;
-                generateButton.disabled = false;
-                saveToLibraryButton.disabled = false;
-                apiKeyInput.removeAttribute('readonly');
-                apiKeyInput.disabled = false;
-                saveApiKeyButton.disabled = false;
-                saveApiKeyButton.textContent = "키 변경";
+                if(promptInput) promptInput.disabled = false;
+                if(generateButton) generateButton.disabled = false;
+                if(applyParamsToTitleButton) applyParamsToTitleButton.disabled = false;
+
+                if(apiKeyInput) apiKeyInput.removeAttribute('readonly');
+                if(apiKeyInput) apiKeyInput.disabled = false;
+                if(saveApiKeyButton) saveApiKeyButton.disabled = false;
+                if(saveApiKeyButton) saveApiKeyButton.textContent = "키 변경";
                 
             } catch (e) {
                 showError(`API 키 (${userKey.substring(0,4)}...) 저장 또는 AI 초기화 실패: ${e.message}`);
                 ai = null; 
                 currentApiKey = null;
-                promptInput.disabled = true;
-                generateButton.disabled = true;
-                saveToLibraryButton.disabled = true;
-                saveApiKeyButton.textContent = "키 저장";
-                apiKeyInput.removeAttribute('readonly');
-                apiKeyInput.disabled = false;
-                saveApiKeyButton.disabled = false;
+                if(promptInput) promptInput.disabled = true;
+                if(generateButton) generateButton.disabled = true;
+                if(applyParamsToTitleButton) applyParamsToTitleButton.disabled = true;
+
+                if(saveApiKeyButton) saveApiKeyButton.textContent = "키 저장";
+                if(apiKeyInput) apiKeyInput.removeAttribute('readonly');
+                if(apiKeyInput) apiKeyInput.disabled = false;
+                if(saveApiKeyButton) saveApiKeyButton.disabled = false;
             } finally {
+                // Ensure saveToLibraryButton is enabled if not loading, regardless of AI state.
+                if(saveToLibraryButton) saveToLibraryButton.disabled = false;
                 setLoadingState(false);
             }
         }
@@ -1039,9 +1044,9 @@
 
         function init() {
             assignUIElements();
-            saveApiKeyButton.addEventListener('click', handleSaveApiKey);
+            if(saveApiKeyButton) saveApiKeyButton.addEventListener('click', handleSaveApiKey);
             
-            loadAndInitializeAi();
+            loadAndInitializeAi(); 
             loadLibraryFromStorage(); 
 
             scene = new THREE.Scene();
@@ -1067,6 +1072,7 @@
             regenerateAllParticles(); 
             addEventListeners();
             updatePanelFromCurrentParams();
+            animate(0); // Start the animation loop
         }
         
         function setupParticleSystem() {
@@ -1149,7 +1155,7 @@
         }
 
         function updateParticles(time) {
-            if (!points || !points.geometry || generateButton.disabled) return; 
+            if (!points || !points.geometry) return;
             const timeFactor = time * animationConfig.speed; 
             const amp = animationConfig.amplitude; 
             const animatedParams = {
@@ -1251,18 +1257,21 @@ The JSON object must follow this schema:
         
         function setLoadingState(isLoading) {
             const aiReady = !!ai;
-            const envKeyInUseAndValid = apiKeyInput.hasAttribute('readonly');
+            const envKeyInUse = apiKeyInput && apiKeyInput.hasAttribute('readonly');
 
-            generateButton.disabled = isLoading || !aiReady;
-            promptInput.disabled = isLoading || !aiReady;
-            saveToLibraryButton.disabled = isLoading || !aiReady; 
+            if (promptInput) promptInput.disabled = isLoading || !aiReady;
+            if (generateButton) generateButton.disabled = isLoading || !aiReady;
+            if (applyParamsToTitleButton) applyParamsToTitleButton.disabled = isLoading || !aiReady;
             
-            buttonText.classList.toggle('hidden', isLoading);
-            loader.classList.toggle('hidden', !isLoading);
+            // Allow saving manual/loaded fractals even if AI is not ready or loading, but disable if an operation is truly in progress.
+            if (saveToLibraryButton) saveToLibraryButton.disabled = isLoading; 
 
-            applyManualParamsButton.disabled = isLoading; 
-            applyParamsToTitleButton.disabled = isLoading || !aiReady;
-            resetToCurrentParamsButton.disabled = isLoading; 
+
+            if (buttonText) buttonText.classList.toggle('hidden', isLoading);
+            if (loader) loader.classList.toggle('hidden', !isLoading);
+
+            if (applyManualParamsButton) applyManualParamsButton.disabled = isLoading;
+            if (resetToCurrentParamsButton) resetToCurrentParamsButton.disabled = isLoading;
 
             Object.values(manualParamInputs).forEach(inputGroup => {
                 if (!inputGroup) return;
@@ -1271,7 +1280,7 @@ The JSON object must follow this schema:
                 if (inputGroup.select) inputGroup.select.disabled = isLoading;
             });
 
-            if (!envKeyInUseAndValid) {
+            if (!envKeyInUse) {
                 if (apiKeyInput) apiKeyInput.disabled = isLoading;
                 if (saveApiKeyButton) saveApiKeyButton.disabled = isLoading;
             }
@@ -1443,16 +1452,16 @@ Your output MUST be a single, valid JSON object with {"name": "Korean name (max 
             document.addEventListener('touchend', onTouchEnd, false);
             document.addEventListener('touchmove', onTouchMove, { passive: false });
             
-            generateButton.addEventListener('click', generateParamsFromPrompt);
-            promptInput.addEventListener('keyup', (e) => { if (e.key === 'Enter' && !generateButton.disabled) generateParamsFromPrompt(); });
+            if (generateButton) generateButton.addEventListener('click', generateParamsFromPrompt);
+            if (promptInput) promptInput.addEventListener('keyup', (e) => { if (e.key === 'Enter' && !generateButton.disabled) generateParamsFromPrompt(); });
             
             setupManualControlListeners(); 
             
             // Library event listeners
-            toggleLibraryButton.addEventListener('click', toggleLibraryPanel);
-            saveToLibraryButton.addEventListener('click', saveCurrentFractal);
-            exportLibraryButton.addEventListener('click', exportLibrary);
-            importLibraryInput.addEventListener('change', importLibrary);
+            if (toggleLibraryButton) toggleLibraryButton.addEventListener('click', toggleLibraryPanel);
+            if (saveToLibraryButton) saveToLibraryButton.addEventListener('click', saveCurrentFractal);
+            if (exportLibraryButton) exportLibraryButton.addEventListener('click', exportLibrary);
+            if (importLibraryInput) importLibraryInput.addEventListener('change', importLibrary);
         }
 
         function onWindowResize() {
@@ -1464,22 +1473,75 @@ Your output MUST be a single, valid JSON object with {"name": "Korean name (max 
         }
         
         function isEventInSidePanels(eventTarget) { 
-            const inManualControls = manualControlsPanel.contains(eventTarget) || toggleManualControlsButton.contains(eventTarget);
-            const inLibrary = libraryPanel.contains(eventTarget) || toggleLibraryButton.contains(eventTarget);
-            const inLibraryButtons = exportLibraryButton.contains(eventTarget) || document.getElementById('importLibraryLabel').contains(eventTarget); // Check label for import
-            return inManualControls || inLibrary || inLibraryButtons;
+            const inManualControls = manualControlsPanel && (manualControlsPanel.contains(eventTarget) || (toggleManualControlsButton && toggleManualControlsButton.contains(eventTarget)));
+            const inLibrary = libraryPanel && (libraryPanel.contains(eventTarget) || (toggleLibraryButton && toggleLibraryButton.contains(eventTarget)));
+            const inLibraryButtons = exportLibraryButton && exportLibraryButton.contains(eventTarget);
+            const importLabel = document.getElementById('importLibraryLabel');
+            const inImportLabel = importLabel && importLabel.contains(eventTarget);
+            
+            return inManualControls || inLibrary || inLibraryButtons || inImportLabel;
         }
 
-        function onMouseDown(event) { if (isEventInSidePanels(event.target) || event.target === promptInput || event.target === generateButton || generateButton.contains(event.target) || saveToLibraryButton.contains(event.target) || event.target === apiKeyInput || event.target === saveApiKeyButton) return; isMouseDown = true; lastMouseX = event.clientX; lastMouseY = event.clientY; }
+        function onMouseDown(event) { if (isEventInSidePanels(event.target) || (promptInput && event.target === promptInput) || (generateButton && (event.target === generateButton || generateButton.contains(event.target))) || (saveToLibraryButton && saveToLibraryButton.contains(event.target)) || (apiKeyInput && event.target === apiKeyInput) || (saveApiKeyButton && event.target === saveApiKeyButton)) return; isMouseDown = true; lastMouseX = event.clientX; lastMouseY = event.clientY; }
         function onMouseUp() { isMouseDown = false; }
         function onMouseMove(event) { if (isEventInSidePanels(event.target) || !isMouseDown) return; const deltaX = event.clientX - lastMouseX; const deltaY = event.clientY - lastMouseY; rotationY += deltaX * 0.005; rotationX += deltaY * 0.005; lastMouseX = event.clientX; lastMouseY = event.clientY; }
-        function onMouseWheel(event) { if (isEventInSidePanels(event.target) || event.target === promptInput || event.target === generateButton || generateButton.contains(event.target) || saveToLibraryButton.contains(event.target) || event.target === apiKeyInput || event.target === saveApiKeyButton) return; event.preventDefault(); if (!camera) return; camera.position.z += event.deltaY * 0.01; camera.position.z = THREE.MathUtils.clamp(camera.position.z, 0.33, 25); }
-        function onTouchStart(event) { if (isEventInSidePanels(event.target) || event.target === promptInput || event.target === generateButton || generateButton.contains(event.target) || saveToLibraryButton.contains(event.target) || event.target === apiKeyInput || event.target === saveApiKeyButton) return; if (event.touches.length === 1) { event.preventDefault(); isMouseDown = true; lastMouseX = event.touches[0].clientX; lastMouseY = event.touches[0].clientY; } else if (event.touches.length === 2) { event.preventDefault(); const dx = event.touches[0].clientX - event.touches[1].clientX; const dy = event.touches[0].clientY - event.touches[1].clientY; initialPinchDistance = Math.sqrt(dx * dx + dy * dy); } }
-        function onTouchEnd(event) { isMouseDown = false; initialPinchDistance = 0; }
-        function onTouchMove(event) { if (isEventInSidePanels(event.target)) return; event.preventDefault(); if (!camera) return; if (event.touches.length === 1 && isMouseDown) { const deltaX = event.touches[0].clientX - lastMouseX; const deltaY = event.touches[0].clientY - lastMouseY; rotationY += deltaX * 0.005; rotationX += deltaY * 0.005; lastMouseX = event.touches[0].clientX; lastMouseY = event.touches[0].clientY; } else if (event.touches.length === 2 && initialPinchDistance > 0) { const dx = event.touches[0].clientX - event.touches[1].clientX; const dy = event.touches[0].clientY - event.touches[1].clientY; const currentPinchDistance = Math.sqrt(dx * dx + dy * dy); const deltaDistance = initialPinchDistance - currentPinchDistance; camera.position.z += deltaDistance * 0.05; camera.position.z = THREE.MathUtils.clamp(camera.position.z, 0.33, 25); initialPinchDistance = currentPinchDistance; } }
+        
+        function onMouseWheel(event) { 
+            if (isEventInSidePanels(event.target)) { 
+                // If the event target is inside one of the side panels,
+                // do not prevent default scrolling for that panel.
+                // The panel itself should handle its overflow scrolling.
+                return; 
+            }
+            // If the event is not over a side panel, then it's for the main canvas.
+            event.preventDefault(); // Prevent default page scroll
 
-        init();
-        if (renderer) animate(0); 
+            const zoomSpeed = 0.001; 
+            camera.position.z -= event.deltaY * zoomSpeed * 5; 
+            camera.position.z = Math.max(0.5, Math.min(50, camera.position.z)); 
+        }
+
+        function onTouchStart(event) {
+            if (isEventInSidePanels(event.target) || (promptInput && event.target === promptInput) || (generateButton && (event.target === generateButton || generateButton.contains(event.target))) || (saveToLibraryButton && saveToLibraryButton.contains(event.target))  || (apiKeyInput && event.target === apiKeyInput) || (saveApiKeyButton && event.target === saveApiKeyButton)) return;
+            isMouseDown = true;
+            if (event.touches.length === 1) {
+                lastMouseX = event.touches[0].clientX;
+                lastMouseY = event.touches[0].clientY;
+            } else if (event.touches.length === 2) {
+                const dx = event.touches[0].clientX - event.touches[1].clientX;
+                const dy = event.touches[0].clientY - event.touches[1].clientY;
+                initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+            }
+             if (event.touches.length >= 1 && !isEventInSidePanels(event.target)) {
+                event.preventDefault(); // Prevent page scroll/refresh on touch
+            }
+        }
+        function onTouchEnd(event) { isMouseDown = false; initialPinchDistance = 0; }
+        function onTouchMove(event) {
+            if (isEventInSidePanels(event.target) || !isMouseDown) return;
+            event.preventDefault(); // Essential for preventing page scroll on touch drag
+
+            if (event.touches.length === 1) {
+                const deltaX = event.touches[0].clientX - lastMouseX;
+                const deltaY = event.touches[0].clientY - lastMouseY;
+                rotationY += deltaX * 0.005;
+                rotationX += deltaY * 0.005;
+                lastMouseX = event.touches[0].clientX;
+                lastMouseY = event.touches[0].clientY;
+            } else if (event.touches.length === 2) {
+                const dx = event.touches[0].clientX - event.touches[1].clientX;
+                const dy = event.touches[0].clientY - event.touches[1].clientY;
+                const currentPinchDistance = Math.sqrt(dx * dx + dy * dy);
+                const zoomFactor = initialPinchDistance / currentPinchDistance;
+                
+                camera.position.z *= zoomFactor;
+                camera.position.z = Math.max(0.5, Math.min(50, camera.position.z));
+                initialPinchDistance = currentPinchDistance; // Update for continuous pinch
+            }
+        }
+        
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 <script type="module" src="/index.tsx"></script>
 </body>

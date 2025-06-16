@@ -57,14 +57,6 @@
 3. **환경 변수 설정**
    - Vercel 대시보드에서 환경 변수 `GEMINI_API_KEY` 설정
 
-4. **Vercel에 배포**
-   ```bash
-   # Vercel CLI 설치 (필요한 경우)
-   npm i -g vercel
-   
-   # 배포
-   vercel --prod
-   ```
 
 ### 로컬 개발
 
