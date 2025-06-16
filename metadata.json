@@ -1,0 +1,6 @@
+{
+  "name": "3D 프랙탈 아트",
+  "description": "사용자 프롬프트를 기반으로 Gemini AI를 사용하여 독특한 3D De Jong 프랙탈 아트, 색상 팔레트, 이름 및 스토리를 생성하는 인터랙티브 웹 애플리케이션입니다. Three.js로 렌더링됩니다.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

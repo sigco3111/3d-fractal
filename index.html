@@ -1,0 +1,1486 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ AI 기반 3D 프랙탈 아트 (스토리 & 애니메이션 생성)</title>
+    
+    <!-- Favicon 설정 -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="theme-color" content="#0f0f23">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+            font-family: 'Inter', 'Pretendard', sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .text-overlay {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.95); /* Slightly more opaque */
+            z-index: 100;
+            pointer-events: none;
+            transition: opacity 0.7s ease-in-out;
+        }
+        #info {
+            top: 15px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+            text-shadow: 0 0 8px rgba(0,0,0,0.6);
+        }
+        #fractal-name {
+            top: 45px;
+            font-size: 1.6rem; /* Slightly larger */
+            font-weight: 500;
+            text-shadow: 0 0 12px rgba(0, 0, 0, 0.8), 0 0 3px rgba(0,0,0,0.6); /* Softer glow */
+        }
+        #fractal-description {
+            top: 85px; /* Adjusted position */
+            font-size: 1rem;
+            font-weight: 300;
+            line-height: 1.6;
+            text-shadow: 0 0 12px rgba(0, 0, 0, 0.8), 0 0 3px rgba(0,0,0,0.6); /* Softer glow */
+        }
+        .color-swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #60a5fa; /* Lighter blue */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Common Panel Styles */
+        .side-panel {
+            position: fixed;
+            top: 0;
+            width: 300px; /* Default width, can be overridden */
+            height: 100%;
+            background-color: rgba(20, 22, 40, 0.97); /* Slightly more opaque for better readability */
+            backdrop-filter: blur(10px); /* Enhanced blur */
+            z-index: 200;
+            transition: transform 0.3s ease-in-out;
+            padding: 20px;
+            padding-bottom: 80px; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.7); /* Softer, wider shadow */
+            overflow-y: auto;
+            color: #e0e0f0; 
+        }
+        .side-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        .side-panel::-webkit-scrollbar-track {
+            background: #1f223d; /* Darker track */
+        }
+        .side-panel::-webkit-scrollbar-thumb {
+            background: #4a4d6a; /* Lighter thumb */
+            border-radius: 4px;
+        }
+        .side-panel::-webkit-scrollbar-thumb:hover {
+            background: #5f6282;
+        }
+
+        #manualControlsPanel {
+            left: 0;
+            transform: translateX(-100%);
+        }
+        #manualControlsPanel.open { 
+            transform: translateX(0);
+        }
+
+        #libraryPanel {
+            right: 0;
+            transform: translateX(100%);
+            width: 320px; 
+        }
+        #libraryPanel.open { 
+            transform: translateX(0);
+        }
+
+
+        .top-left-button {
+            position: fixed;
+            top: 10px;
+            z-index: 210;
+            background-color: rgba(30, 35, 60, 0.85); 
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px; 
+            line-height: 40px; 
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+        .top-left-button:hover {
+            background-color: rgba(45, 50, 80, 0.95);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+        }
+        #toggleManualControlsButton {
+            left: 10px;
+        }
+        #toggleLibraryButton {
+            left: 60px; 
+        }
+
+        .param-group {
+            margin-bottom: 1rem;
+        }
+        .param-group label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-size: 0.85rem;
+            color: #a0a0c0; 
+        }
+        .param-group input[type="range"] {
+            width: 100%;
+            accent-color: #60a5fa; 
+        }
+        .param-group input[type="number"], .param-group select {
+            width: 100%;
+            background-color: #1f223d; 
+            border: 1px solid #3a3d5a; 
+            color: #e0e0f0;
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+        .panel-button {
+            width: 100%;
+            padding: 0.6rem;
+            border-radius: 5px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            margin-top: 0.5rem;
+            cursor: pointer;
+        }
+        .panel-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #controls { 
+            background: linear-gradient(to top, rgba(10, 10, 25, 0.9) 0%, rgba(10, 10, 25, 0.7) 100%);
+        }
+        #promptInput {
+             background-color: rgba(25, 30, 55, 0.8); 
+             border-color: rgba(60, 65, 90, 0.8);
+        }
+        #generateButton, #saveToLibraryButton {
+            background-color: #3b82f6; 
+            color: white;
+            font-weight: bold;
+            padding: 0.5rem 0.75rem; 
+            border-radius: 0.5rem; 
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem; 
+        }
+        #generateButton:hover, #saveToLibraryButton:hover {
+            background-color: #2563eb; 
+        }
+        #saveToLibraryButton {
+             background-color: #10b981; 
+        }
+        #saveToLibraryButton:hover {
+            background-color: #059669; 
+        }
+        #saveToLibraryButton svg {
+            width: 1.25em; 
+            height: 1.25em; 
+        }
+
+
+        #apiKeyInput {
+            background-color: rgba(25, 30, 55, 0.8); 
+            border-color: rgba(60, 65, 90, 0.8);
+        }
+        #apiKeyInput:read-only {
+            background-color: rgba(40, 45, 70, 0.8);
+            cursor: not-allowed;
+        }
+        #saveApiKeyButton {
+             background-color: #10b981; 
+        }
+        #saveApiKeyButton:hover {
+            background-color: #059669; 
+        }
+        #saveApiKeyButton:disabled {
+            background-color: #374151; 
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        /* Library Panel Specific Styles */
+        .library-item {
+            background-color: rgba(30, 35, 60, 0.7);
+            border: 1px solid rgba(60, 65, 90, 0.8);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            color: #d0d0e0;
+        }
+        .library-item-name {
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: #a7c5eb; 
+            margin-bottom: 6px;
+        }
+        .library-item-details {
+            font-size: 0.75rem;
+            color: #8080a0;
+            margin-bottom: 8px;
+        }
+        .library-item-colors {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+        .library-item-colors .color-swatch {
+            width: 16px;
+            height: 16px;
+        }
+        .library-item-actions button {
+            background-color: #3b82f6; 
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 6px;
+            border: none;
+            cursor: pointer;
+        }
+        .library-item-actions button.delete-btn {
+            background-color: #ef4444; 
+        }
+        .library-item-actions button.delete-btn:hover {
+            background-color: #dc2626; 
+        }
+        .library-item-actions button:hover {
+            background-color: #2563eb; 
+        }
+        #libraryPanel h3 {
+             color: #60a5fa; 
+        }
+
+        #exportLibraryButton, #importLibraryLabel {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            display: block; /* Make label block for full width */
+            text-align: center;
+        }
+        #exportLibraryButton {
+             background-color: #059669; /* emerald-600 */
+             color: white;
+        }
+        #exportLibraryButton:hover {
+             background-color: #047857; /* emerald-700 */
+        }
+        #exportLibraryButton:disabled {
+            background-color: #4b5563; /* gray-600 */
+        }
+
+        #importLibraryLabel {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+        }
+        #importLibraryLabel:hover {
+            background-color: #2563eb; /* blue-600 */
+        }
+        #importLibraryInput {
+            display: none; /* Hide the actual file input */
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "three": "https://esm.sh/three@^0.177.0",
+    "three/": "https://esm.sh/three@^0.177.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-black">
+    <button id="toggleManualControlsButton" class="top-left-button" title="수동 제어판 열기/닫기">☰</button>
+    <button id="toggleLibraryButton" class="top-left-button" title="프랙탈 라이브러리 열기/닫기">📚</button>
+
+    <div id="manualControlsPanel" class="side-panel">
+        <h3 class="text-lg font-semibold mb-4 text-blue-400 border-b border-gray-600 pb-2">수동 파라미터 조작</h3>
+        
+        <div class="param-group">
+            <h4 class="text-md font-medium mb-2 text-gray-400">형태 (De Jong Attractor)</h4>
+            <div data-param="a">
+                <label for="param_a">a: <span class="value_a">0</span></label>
+                <input type="range" id="param_a" min="-3" max="3" step="0.01">
+                <input type="number" id="num_a" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="b" class="mt-2">
+                <label for="param_b">b: <span class="value_b">0</span></label>
+                <input type="range" id="param_b" min="-3" max="3" step="0.01">
+                <input type="number" id="num_b" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="c" class="mt-2">
+                <label for="param_c">c: <span class="value_c">0</span></label>
+                <input type="range" id="param_c" min="-3" max="3" step="0.01">
+                <input type="number" id="num_c" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="d" class="mt-2">
+                <label for="param_d">d: <span class="value_d">0</span></label>
+                <input type="range" id="param_d" min="-3" max="3" step="0.01">
+                <input type="number" id="num_d" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="e" class="mt-2">
+                <label for="param_e">e: <span class="value_e">0</span></label>
+                <input type="range" id="param_e" min="-3" max="3" step="0.01">
+                <input type="number" id="num_e" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="f" class="mt-2">
+                <label for="param_f">f: <span class="value_f">0</span></label>
+                <input type="range" id="param_f" min="-3" max="3" step="0.01">
+                <input type="number" id="num_f" min="-3" max="3" step="0.01">
+            </div>
+        </div>
+
+        <div class="param-group">
+            <h4 class="text-md font-medium mb-2 mt-3 text-gray-400">애니메이션</h4>
+            <div data-param="speed">
+                <label for="param_speed">Speed: <span class="value_speed">0</span></label>
+                <input type="range" id="param_speed" min="0.00001" max="0.0005" step="0.00001">
+                <input type="number" id="num_speed" min="0.00001" max="0.0005" step="0.00001">
+            </div>
+            <div data-param="amplitude" class="mt-2">
+                <label for="param_amplitude">Amplitude: <span class="value_amplitude">0</span></label>
+                <input type="range" id="param_amplitude" min="0" max="1" step="0.01">
+                <input type="number" id="num_amplitude" min="0" max="1" step="0.01">
+            </div>
+        </div>
+
+        <div class="param-group">
+            <h4 class="text-md font-medium mb-2 mt-3 text-gray-400">외형</h4>
+            <div data-param="particleSize">
+                <label for="param_particleSize">Particle Size: <span class="value_particleSize">0</span></label>
+                <input type="range" id="param_particleSize" min="0.005" max="0.1" step="0.001">
+                <input type="number" id="num_particleSize" min="0.005" max="0.1" step="0.001">
+            </div>
+             <div data-param="particleShape" class="mt-2">
+                <label for="param_particleShape">Particle Shape: <span class="value_particleShape_label">부드러운 구체</span></label>
+                <select id="param_particleShape">
+                    <option value="softSphere">부드러운 구체</option>
+                    <option value="square">사각형</option>
+                    <option value="star">별</option>
+                    <option value="sparkle">반짝이</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="param-group">
+            <h4 class="text-md font-medium mb-2 mt-3 text-gray-400">색상 팔레트 (AI 생성)</h4>
+            <div id="color-palette-display-panel" class="flex flex-wrap justify-start items-center gap-2 py-1">
+            </div>
+        </div>
+
+        <button id="applyManualParamsButton" class="panel-button bg-blue-500 hover:bg-blue-600 text-white">수동 적용</button>
+        <button id="applyParamsToTitleButton" class="panel-button bg-purple-500 hover:bg-purple-600 text-white">파라미터를 제목에 적용</button>
+        <button id="resetToCurrentParamsButton" class="panel-button bg-gray-600 hover:bg-gray-700 text-white">현재 설정으로 초기화</button>
+    </div>
+
+    <div id="libraryPanel" class="side-panel">
+        <h3 class="text-lg font-semibold mb-4 border-b border-gray-600 pb-2">내 프랙탈 라이브러리</h3>
+        <div id="libraryItemsContainer" class="space-y-3">
+            <!-- Library items will be dynamically inserted here -->
+        </div>
+        <p id="emptyLibraryMessage" class="text-gray-400 text-center py-4 hidden">라이브러리가 비어있습니다. 프랙탈을 생성하고 저장해보세요!</p>
+        
+        <button id="exportLibraryButton" class="panel-button">라이브러리 내보내기</button>
+        <input type="file" id="importLibraryInput" accept=".json">
+        <label for="importLibraryInput" id="importLibraryLabel" class="panel-button">라이브러리 가져오기</label>
+    </div>
+
+
+    <div id="info" class="text-overlay">드래그하여 회전 | 스크롤/핀치로 확대/축소</div>
+    <div id="fractal-name" class="text-overlay">초기 프랙탈</div>
+    <div id="fractal-description" class="text-overlay"></div>
+
+    <div id="controls" class="fixed bottom-0 left-0 w-full p-3 sm:p-4 backdrop-blur-sm z-50 flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-3">
+        <div id="apiKeySection" class="flex items-center gap-2 w-full sm:w-auto mb-2 sm:mb-0 max-w-md sm:max-w-sm md:max-w-md">
+            <input type="password" id="apiKeyInput" class="text-white border border-gray-600 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder="Gemini API 키">
+            <button id="saveApiKeyButton" class="text-white font-semibold py-2 px-3 rounded-lg text-sm whitespace-nowrap transition-colors">키 저장</button>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto max-w-md sm:max-w-none">
+            <input type="text" id="promptInput" class="text-white border rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="예: '폭풍 속의 등대'">
+            <button id="generateButton">
+                <span id="buttonText">✨ 생성</span>
+                <div id="loader" class="loader hidden"></div>
+            </button>
+            <button id="saveToLibraryButton" title="현재 프랙탈을 라이브러리에 저장">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                    <path d="M5.5 16.5A.5.5 0 0 1 5 16V4.5a2.5 2.5 0 0 1 5 0V16a.5.5 0 0 1-.5.5h-4Z" />
+                    <path d="M5 4.5a2.5 2.5 0 0 1 5 0v11.5a1.5 1.5 0 0 1-3 0V5.207a.5.5 0 0 0-.854-.353l-.942.942A2.502 2.502 0 0 1 5 4.5Z" />
+                    <path d="M12.5 3a2.5 2.5 0 0 0-2.5 2.5V17a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5V5.5A2.5 2.5 0 0 0 12.5 3Z" />
+                </svg>
+                <span>저장</span>
+            </button>
+        </div>
+    </div>
+    <div id="error-message" class="fixed bottom-24 sm:bottom-20 left-1/2 -translate-x-1/2 bg-red-500 text-white py-2 px-4 rounded-lg hidden z-50 text-sm"></div>
+
+    <script type="module">
+        import * as THREE from 'three'; 
+        import { GoogleGenAI } from "https://esm.run/@google/genai";
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        const GEMINI_API_KEY_LOCAL_STORAGE_KEY = 'geminiApiKey';
+        const LIBRARY_LOCAL_STORAGE_KEY = 'fractalArtLibrary';
+        let currentApiKey = null; 
+        let ai;
+        let fractalLibrary = [];
+
+        // --- Core Components ---
+        let scene, camera, renderer, points;
+        let geometry, material, particleTexture;
+        let composer, bloomPass;
+
+        // --- Particle & Formula Parameters ---
+        const particleCount = 200000;
+        const particlesPerFrame = 4000; 
+        const baseParticleScale = 5; 
+        let currentParticleEffectScale = baseParticleScale; 
+        let attractorParams = { a: -2.0, b: -2.0, c: -1.2, d: 2.0, e: 1.0, f: -0.5 }; 
+        let colorPalette = [new THREE.Color("#FFA07A"), new THREE.Color("#20B2AA"), new THREE.Color("#778899")]; 
+        let animationConfig = { speed: 0.0001, amplitude: 0.4 }; 
+        let particleRenderSize = 0.025; 
+        let currentParticleShape = 'softSphere'; 
+
+        // --- Particle State ---
+        let particleCursor = 0; 
+        let currentX = 0.1, currentY = 0.1, currentZ = 0.1; 
+
+        // --- Mouse & Touch Interaction ---
+        let isMouseDown = false;
+        let lastMouseX = 0, lastMouseY = 0;
+        let rotationX = 0, rotationY = 0; 
+        let initialPinchDistance = 0; 
+
+        // --- UI Elements ---
+        let promptInput, generateButton, buttonText, loader, errorMessageDiv,
+            fractalNameDiv, fractalDescriptionDiv, colorPaletteDisplayDiv,
+            apiKeyInput, saveApiKeyButton; 
+        
+        // --- Manual Controls UI Elements ---
+        let manualControlsPanel, toggleManualControlsButton, applyManualParamsButton,
+            applyParamsToTitleButton, resetToCurrentParamsButton;
+        
+        // --- Library UI Elements ---
+        let libraryPanel, toggleLibraryButton, saveToLibraryButton, 
+            libraryItemsContainer, emptyLibraryMessage,
+            exportLibraryButton, importLibraryInput;
+
+        const manualParamInputs = {
+            a: {}, b: {}, c: {}, d: {}, e: {}, f: {},
+            speed: {}, amplitude: {}, particleSize: {}, particleShape: {}
+        };
+
+        const placeholderPrompts = [
+            "신비로운 밤하늘의 오로라", "태양 아래 반짝이는 수정 동굴", "심해 속 빛나는 산호초",
+            "바람에 흩날리는 벚꽃잎의 춤", "안개 자욱한 고대 숲의 정령", "은하수를 건너는 불사조",
+            "화산 폭발의 용암과 재", "얼음 왕국의 수정 궁전", "사막의 신기루 도시", "꿈결처럼 피어나는 연꽃"
+        ];
+        
+        function assignUIElements() {
+            promptInput = document.getElementById('promptInput');
+            generateButton = document.getElementById('generateButton');
+            buttonText = document.getElementById('buttonText');
+            loader = document.getElementById('loader');
+            errorMessageDiv = document.getElementById('error-message');
+            fractalNameDiv = document.getElementById('fractal-name');
+            fractalDescriptionDiv = document.getElementById('fractal-description');
+            colorPaletteDisplayDiv = document.getElementById('color-palette-display-panel');
+            apiKeyInput = document.getElementById('apiKeyInput');
+            saveApiKeyButton = document.getElementById('saveApiKeyButton');
+            
+            manualControlsPanel = document.getElementById('manualControlsPanel');
+            toggleManualControlsButton = document.getElementById('toggleManualControlsButton');
+            applyManualParamsButton = document.getElementById('applyManualParamsButton');
+            applyParamsToTitleButton = document.getElementById('applyParamsToTitleButton');
+            resetToCurrentParamsButton = document.getElementById('resetToCurrentParamsButton');
+
+            libraryPanel = document.getElementById('libraryPanel');
+            toggleLibraryButton = document.getElementById('toggleLibraryButton');
+            saveToLibraryButton = document.getElementById('saveToLibraryButton');
+            libraryItemsContainer = document.getElementById('libraryItemsContainer');
+            emptyLibraryMessage = document.getElementById('emptyLibraryMessage');
+            exportLibraryButton = document.getElementById('exportLibraryButton');
+            importLibraryInput = document.getElementById('importLibraryInput');
+
+
+            manualParamInputs.a = { range: document.getElementById('param_a'), num: document.getElementById('num_a'), val: document.querySelector('.value_a') };
+            manualParamInputs.b = { range: document.getElementById('param_b'), num: document.getElementById('num_b'), val: document.querySelector('.value_b') };
+            manualParamInputs.c = { range: document.getElementById('param_c'), num: document.getElementById('num_c'), val: document.querySelector('.value_c') };
+            manualParamInputs.d = { range: document.getElementById('param_d'), num: document.getElementById('num_d'), val: document.querySelector('.value_d') };
+            manualParamInputs.e = { range: document.getElementById('param_e'), num: document.getElementById('num_e'), val: document.querySelector('.value_e') };
+            manualParamInputs.f = { range: document.getElementById('param_f'), num: document.getElementById('num_f'), val: document.querySelector('.value_f') };
+            manualParamInputs.speed = { range: document.getElementById('param_speed'), num: document.getElementById('num_speed'), val: document.querySelector('.value_speed') };
+            manualParamInputs.amplitude = { range: document.getElementById('param_amplitude'), num: document.getElementById('num_amplitude'), val: document.querySelector('.value_amplitude') };
+            manualParamInputs.particleSize = { range: document.getElementById('param_particleSize'), num: document.getElementById('num_particleSize'), val: document.querySelector('.value_particleSize') };
+            manualParamInputs.particleShape = { select: document.getElementById('param_particleShape'), label: document.querySelector('.value_particleShape_label') };
+        }
+
+        // --- Library Functions ---
+        function loadLibraryFromStorage() {
+            const storedLibrary = localStorage.getItem(LIBRARY_LOCAL_STORAGE_KEY);
+            if (storedLibrary) {
+                try {
+                    const parsedLibrary = JSON.parse(storedLibrary);
+                    if (Array.isArray(parsedLibrary)) { // Basic validation
+                        fractalLibrary = parsedLibrary;
+                    } else {
+                        fractalLibrary = [];
+                        console.warn("Stored library was not an array, resetting.");
+                    }
+                } catch (e) {
+                    fractalLibrary = [];
+                    console.error("Error parsing stored library:", e);
+                }
+            } else {
+                fractalLibrary = [];
+            }
+            renderLibrary();
+        }
+
+        function saveLibraryToStorage() {
+            localStorage.setItem(LIBRARY_LOCAL_STORAGE_KEY, JSON.stringify(fractalLibrary));
+        }
+
+        function saveCurrentFractal() {
+            if (generateButton.disabled) { 
+                showError("현재 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.");
+                return;
+            }
+
+            let name = fractalNameDiv.textContent || "이름 없는 프랙탈";
+            const description = fractalDescriptionDiv.textContent || "설명 없음";
+            
+            const genericNames = ["초기 프랙탈", "수동 설정 프랙탈", "이름 없는 프랙탈", "오류 발생", "수동 설정 (AI 이름 오류)"];
+            if (genericNames.includes(name) || fractalLibrary.some(item => item.name === name)) {
+                 let counter = 1;
+                 let newName = `${name} (${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})`;
+                 while (fractalLibrary.some(item => item.name === newName)) {
+                    newName = `${name} (${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${counter++})`;
+                 }
+                 name = newName;
+            }
+
+
+            const newFractalEntry = {
+                id: Date.now().toString(),
+                name: name,
+                description: description,
+                attractorParams: { ...attractorParams },
+                colorPalette: colorPalette.map(c => `#${c.getHexString()}`),
+                animationConfig: { ...animationConfig },
+                particleRenderSize: particleRenderSize,
+                currentParticleShape: currentParticleShape,
+                savedAt: new Date().toISOString()
+            };
+
+            fractalLibrary.unshift(newFractalEntry); 
+            saveLibraryToStorage();
+            renderLibrary();
+            showError(`'${newFractalEntry.name}'이(가) 라이브러리에 저장되었습니다.`, true);
+        }
+
+        function renderLibrary() {
+            if (!libraryItemsContainer || !emptyLibraryMessage || !exportLibraryButton) return;
+            libraryItemsContainer.innerHTML = ''; 
+
+            if (fractalLibrary.length === 0) {
+                emptyLibraryMessage.classList.remove('hidden');
+                exportLibraryButton.disabled = true;
+            } else {
+                emptyLibraryMessage.classList.add('hidden');
+                exportLibraryButton.disabled = false;
+                fractalLibrary.forEach(fractal => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'library-item';
+                    
+                    const nameEl = document.createElement('div');
+                    nameEl.className = 'library-item-name';
+                    nameEl.textContent = fractal.name;
+                    
+                    const detailsEl = document.createElement('div');
+                    detailsEl.className = 'library-item-details';
+                    detailsEl.textContent = `저장일: ${new Date(fractal.savedAt).toLocaleDateString('ko-KR')} ${new Date(fractal.savedAt).toLocaleTimeString('ko-KR', {hour: '2-digit', minute:'2-digit'})}`;
+                    
+                    const colorsEl = document.createElement('div');
+                    colorsEl.className = 'library-item-colors';
+                    fractal.colorPalette.forEach(hexColor => {
+                        const swatch = document.createElement('div');
+                        swatch.className = 'color-swatch';
+                        swatch.style.backgroundColor = hexColor;
+                        colorsEl.appendChild(swatch);
+                    });
+                    
+                    const actionsEl = document.createElement('div');
+                    actionsEl.className = 'library-item-actions';
+                    
+                    const loadBtn = document.createElement('button');
+                    loadBtn.textContent = '불러오기';
+                    loadBtn.onclick = () => loadFractalFromLibrary(fractal.id);
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = '삭제';
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.onclick = () => deleteFractalFromLibrary(fractal.id);
+                    
+                    actionsEl.appendChild(loadBtn);
+                    actionsEl.appendChild(deleteBtn);
+                    
+                    itemDiv.appendChild(nameEl);
+                    itemDiv.appendChild(detailsEl);
+                    itemDiv.appendChild(colorsEl);
+                    itemDiv.appendChild(actionsEl);
+                    
+                    libraryItemsContainer.appendChild(itemDiv);
+                });
+            }
+        }
+
+        function loadFractalFromLibrary(fractalId) {
+            const fractalToLoad = fractalLibrary.find(f => f.id === fractalId);
+            if (!fractalToLoad) {
+                showError("선택한 프랙탈을 찾을 수 없습니다.");
+                return;
+            }
+
+            attractorParams = { ...fractalToLoad.attractorParams };
+            colorPalette = fractalToLoad.colorPalette.map(hex => new THREE.Color(hex));
+            animationConfig = { ...fractalToLoad.animationConfig };
+            particleRenderSize = fractalToLoad.particleRenderSize;
+            
+            applyParticleShape(fractalToLoad.currentParticleShape);
+            
+            fractalNameDiv.textContent = fractalToLoad.name;
+            fractalDescriptionDiv.textContent = fractalToLoad.description;
+            
+            updateColorPaletteDisplay(fractalToLoad.colorPalette);
+            regenerateAllParticles();
+            updatePanelFromCurrentParams();
+            
+            fractalNameDiv.style.opacity = 1; 
+            fractalDescriptionDiv.style.opacity = 1;
+            
+            if (libraryPanel.classList.contains('open')) { 
+                 toggleLibraryPanel();
+            }
+            showError(`'${fractalToLoad.name}'을(를) 불러왔습니다.`, true);
+        }
+
+        function deleteFractalFromLibrary(fractalId) {
+            const fractalToDelete = fractalLibrary.find(f => f.id === fractalId);
+            if (!fractalToDelete) return;
+
+            if (confirm(`'${fractalToDelete.name}' 프랙탈을 라이브러리에서 삭제하시겠습니까?`)) {
+                fractalLibrary = fractalLibrary.filter(f => f.id !== fractalId);
+                saveLibraryToStorage();
+                renderLibrary();
+                showError(`'${fractalToDelete.name}'이(가) 삭제되었습니다.`, true);
+            }
+        }
+        
+        function toggleLibraryPanel() {
+            libraryPanel.classList.toggle('open');
+            if (libraryPanel.classList.contains('open') && manualControlsPanel.classList.contains('open')) {
+                manualControlsPanel.classList.remove('open');
+            }
+        }
+
+        function exportLibrary() {
+            if (fractalLibrary.length === 0) {
+                showError("내보낼 프랙탈이 라이브러리에 없습니다.");
+                return;
+            }
+            const jsonData = JSON.stringify(fractalLibrary, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const today = new Date().toISOString().slice(0, 10);
+            a.href = url;
+            a.download = `fractal_library_export_${today}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showError("라이브러리를 성공적으로 내보냈습니다.", true);
+        }
+
+        function importLibrary(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+            if (file.type !== "application/json") {
+                showError("잘못된 파일 형식입니다. JSON 파일을 선택해주세요.");
+                event.target.value = null; // Reset file input
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (!Array.isArray(importedData)) {
+                        throw new Error("가져온 파일이 유효한 라이브러리 형식이 아닙니다 (배열이 아님).");
+                    }
+
+                    let importedCount = 0;
+                    let skippedCount = 0;
+
+                    importedData.forEach(item => {
+                        // Basic validation for essential properties
+                        if (item && typeof item.name === 'string' &&
+                            item.attractorParams && typeof item.attractorParams.a === 'number' &&
+                            Array.isArray(item.colorPalette) && item.colorPalette.length > 0) {
+                            
+                            const newEntry = { ...item };
+                            newEntry.id = Date.now().toString() + Math.random().toString(36).substring(2,7); // New unique ID
+                            newEntry.savedAt = new Date().toISOString(); // Update savedAt timestamp
+                            
+                            // Prevent exact name duplicates if desired, or allow them
+                            // For simplicity, we'll allow them with new IDs.
+                            // If you want to prevent name duplicates:
+                            // if (fractalLibrary.some(existing => existing.name === newEntry.name)) {
+                            //    newEntry.name = `${newEntry.name} (가져옴 ${new Date().toLocaleTimeString('ko-KR')})`;
+                            // }
+
+                            fractalLibrary.push(newEntry);
+                            importedCount++;
+                        } else {
+                            skippedCount++;
+                            console.warn("Skipping invalid item during import:", item);
+                        }
+                    });
+
+                    if (importedCount > 0) {
+                        saveLibraryToStorage();
+                        renderLibrary();
+                        showError(`${importedCount}개의 프랙탈을 가져왔습니다. ${skippedCount > 0 ? skippedCount + '개 항목 건너뜀.' : ''}`, true);
+                    } else if (skippedCount > 0 && importedCount === 0) {
+                         showError("가져올 유효한 프랙탈 항목이 파일에 없습니다.", false);
+                    } 
+                    else {
+                        showError("가져올 프랙탈이 파일에 없거나 형식이 올바르지 않습니다.", false);
+                    }
+
+                } catch (error) {
+                    showError(`라이브러리 가져오기 실패: ${error.message}`);
+                    console.error("Error importing library:", error);
+                } finally {
+                    event.target.value = null; // Reset file input to allow re-importing same file
+                }
+            };
+            reader.onerror = () => {
+                 showError("파일을 읽는 중 오류가 발생했습니다.");
+                 event.target.value = null; 
+            };
+            reader.readAsText(file);
+        }
+
+
+        // --- Particle Texture Creation Functions ---
+        function createSoftSphereParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(0.4, 'rgba(255,255,255,0.3)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createSquareParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const context = canvas.getContext('2d');
+            context.fillStyle = 'rgba(255,255,255,1)';
+            context.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createStarParticleTexture(points = 5, outerRadius = 30, innerRadius = 15) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const context = canvas.getContext('2d');
+            const centerX = 32, centerY = 32;
+            context.beginPath();
+            context.moveTo(centerX + outerRadius * Math.cos(0), centerY + outerRadius * Math.sin(0));
+            for (let i = 0; i <= 2 * points; i++) {
+                const radius = (i % 2 === 0) ? outerRadius : innerRadius;
+                const angle = Math.PI / points * i - Math.PI / 2;
+                context.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+            }
+            context.closePath();
+            context.fillStyle = 'rgba(255,255,255,1)';
+            context.fill();
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        function createSparkleParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const context = canvas.getContext('2d');
+            const centerX = 32, centerY = 32;
+            context.strokeStyle = 'rgba(255,255,255,1)';
+            context.lineWidth = 8;
+            context.beginPath(); context.moveTo(centerX - 16, centerY); context.lineTo(centerX + 16, centerY); context.stroke();
+            context.beginPath(); context.moveTo(centerX, centerY - 16); context.lineTo(centerX, centerY + 16); context.stroke();
+            context.lineWidth = 5;
+            const dLength = 10;
+            context.beginPath(); context.moveTo(centerX - dLength * Math.cos(Math.PI/4), centerY - dLength * Math.sin(Math.PI/4)); context.lineTo(centerX + dLength * Math.cos(Math.PI/4), centerY + dLength * Math.sin(Math.PI/4)); context.stroke();
+            context.beginPath(); context.moveTo(centerX - dLength * Math.cos(-Math.PI/4), centerY - dLength * Math.sin(-Math.PI/4)); context.lineTo(centerX + dLength * Math.cos(-Math.PI/4), centerY + dLength * Math.sin(-Math.PI/4)); context.stroke();
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function applyParticleShape(shapeName) {
+            currentParticleShape = shapeName;
+            switch (shapeName) {
+                case 'square': particleTexture = createSquareParticleTexture(); break;
+                case 'star': particleTexture = createStarParticleTexture(); break;
+                case 'sparkle': particleTexture = createSparkleParticleTexture(); break;
+                case 'softSphere': default: particleTexture = createSoftSphereParticleTexture(); break;
+            }
+            if (material) {
+                material.map = particleTexture;
+                material.needsUpdate = true;
+            }
+        }
+
+        function updateColorPaletteDisplay(hexColorsArray) {
+            if (!colorPaletteDisplayDiv) return;
+            colorPaletteDisplayDiv.innerHTML = ''; 
+            hexColorsArray.forEach(hexColor => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = hexColor;
+                swatch.setAttribute('title', hexColor); 
+                colorPaletteDisplayDiv.appendChild(swatch);
+            });
+        }
+        
+        async function loadAndInitializeAi() {
+            let keyToUse = null;
+            let keySource = "";
+            const envApiKey = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : null;
+            let envKeyPresent = typeof envApiKey === 'string' && envApiKey.trim() !== '';
+
+            if (envKeyPresent) {
+                keyToUse = envApiKey;
+                keySource = "환경 변수";
+                apiKeyInput.value = keyToUse;
+            } else {
+                keyToUse = localStorage.getItem(GEMINI_API_KEY_LOCAL_STORAGE_KEY);
+                if (keyToUse) {
+                    keySource = "로컬 저장소";
+                    apiKeyInput.value = keyToUse;
+                } else {
+                    keySource = "사용자 입력 필요";
+                }
+                apiKeyInput.disabled = false;
+                apiKeyInput.removeAttribute('readonly');
+                saveApiKeyButton.disabled = false;
+                saveApiKeyButton.textContent = "키 저장";
+            }
+
+            if (keyToUse && keySource !== "사용자 입력 필요") {
+                try {
+                    ai = new GoogleGenAI({ apiKey: keyToUse });
+                    currentApiKey = keyToUse;
+                    console.log(`Gemini AI SDK가 ${keySource}의 API 키로 성공적으로 초기화되었습니다.`);
+                    promptInput.disabled = false;
+                    generateButton.disabled = false;
+                     saveToLibraryButton.disabled = false;
+                    
+                    if (envKeyPresent) {
+                        apiKeyInput.setAttribute('readonly', 'true');
+                        saveApiKeyButton.textContent = "환경 키 사용중";
+                        saveApiKeyButton.disabled = true;
+                        showError(`환경 변수의 API 키를 사용 중입니다. (${keyToUse.substring(0,4)}...)`, true);
+                    } else { 
+                        saveApiKeyButton.textContent = "키 변경";
+                        apiKeyInput.removeAttribute('readonly');
+                        apiKeyInput.disabled = false;
+                        saveApiKeyButton.disabled = false;
+                         showError(`저장된 API 키를 사용 중입니다. (${keyToUse.substring(0,4)}...)`, true);
+                    }
+                } catch (e) {
+                    showError(`(${keySource} 키) Gemini AI SDK 초기화 실패: ${e.message}`);
+                    ai = null;
+                    currentApiKey = null;
+                    promptInput.disabled = true;
+                    generateButton.disabled = true;
+                    saveToLibraryButton.disabled = true;
+                    apiKeyInput.removeAttribute('readonly');
+                    apiKeyInput.disabled = false;
+                    saveApiKeyButton.disabled = false;
+                    saveApiKeyButton.textContent = "키 저장";
+                    if (envKeyPresent) {
+                        apiKeyInput.value = ""; 
+                        showError(`환경 변수 API 키가 유효하지 않습니다. 새 키를 입력해주세요.`);
+                    } else {
+                        showError(`저장된 API 키가 유효하지 않습니다. 새 키를 입력해주세요.`);
+                    }
+                }
+            } else { 
+                if (!envKeyPresent) {
+                    showError("API 키가 없습니다. API 키를 입력하고 저장해주세요.");
+                    apiKeyInput.placeholder = "여기에 API 키를 입력하세요";
+                }
+                promptInput.disabled = true;
+                generateButton.disabled = true;
+                saveToLibraryButton.disabled = true;
+                apiKeyInput.removeAttribute('readonly');
+                apiKeyInput.disabled = false;
+                saveApiKeyButton.disabled = false;
+                saveApiKeyButton.textContent = "키 저장";
+            }
+            setLoadingState(false); 
+        }
+
+        async function handleSaveApiKey() {
+            const userKey = apiKeyInput.value.trim();
+            if (!userKey) {
+                showError("API 키를 입력해주세요.");
+                return;
+            }
+
+            if (apiKeyInput.hasAttribute('readonly')) {
+                 showError("환경 변수의 API 키를 사용 중이므로 UI에서 변경할 수 없습니다.", false);
+                return;
+            }
+
+            setLoadingState(true);
+            try {
+                const tempAi = new GoogleGenAI({ apiKey: userKey });
+                ai = tempAi; 
+                currentApiKey = userKey;
+                localStorage.setItem(GEMINI_API_KEY_LOCAL_STORAGE_KEY, userKey);
+                
+                console.log("새 API 키가 저장되고 AI가 성공적으로 초기화되었습니다.");
+                showError(`API 키 (${userKey.substring(0,4)}...)가 저장되고 적용되었습니다.`, true);
+                
+                promptInput.disabled = false;
+                generateButton.disabled = false;
+                saveToLibraryButton.disabled = false;
+                apiKeyInput.removeAttribute('readonly');
+                apiKeyInput.disabled = false;
+                saveApiKeyButton.disabled = false;
+                saveApiKeyButton.textContent = "키 변경";
+                
+            } catch (e) {
+                showError(`API 키 (${userKey.substring(0,4)}...) 저장 또는 AI 초기화 실패: ${e.message}`);
+                ai = null; 
+                currentApiKey = null;
+                promptInput.disabled = true;
+                generateButton.disabled = true;
+                saveToLibraryButton.disabled = true;
+                saveApiKeyButton.textContent = "키 저장";
+                apiKeyInput.removeAttribute('readonly');
+                apiKeyInput.disabled = false;
+                saveApiKeyButton.disabled = false;
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+
+        function init() {
+            assignUIElements();
+            saveApiKeyButton.addEventListener('click', handleSaveApiKey);
+            
+            loadAndInitializeAi();
+            loadLibraryFromStorage(); 
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 10;
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            applyParticleShape(currentParticleShape); 
+            updateColorPaletteDisplay(colorPalette.map(c => `#${c.getHexString()}`)); 
+
+            const renderPass = new RenderPass(scene, camera); 
+            bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.2, 0.2, 0.95);
+           
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderPass);
+            composer.addPass(bloomPass);
+
+            setupParticleSystem();
+            regenerateAllParticles(); 
+            addEventListeners();
+            updatePanelFromCurrentParams();
+        }
+        
+        function setupParticleSystem() {
+            geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            material = new THREE.PointsMaterial({
+                size: particleRenderSize, vertexColors: true, map: particleTexture,
+                blending: THREE.AdditiveBlending, transparent: true, opacity: 0.9, 
+                sizeAttenuation: true, depthWrite: false, 
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+        }
+
+        function regenerateAllParticles() {
+            let x = 0.1, y = 0.1, z = 0.1;
+            for (let i = 0; i < 1000; i++) { 
+                const { a, b, c, d, e, f } = attractorParams;
+                const nextX = Math.sin(a * y) - Math.cos(b * x);
+                const nextY = Math.sin(c * x) - Math.cos(d * y); 
+                const nextZ = Math.sin(e * x) - Math.cos(f * z); 
+                x = nextX; y = nextY; z = nextZ;
+            }
+            currentX = x; currentY = y; currentZ = z; 
+            particleCursor = 0; 
+            for (let i = 0; i < particleCount; i++) {
+                updateSingleParticle(attractorParams, true); 
+            }
+            if (points && points.geometry) {
+                points.geometry.attributes.position.needsUpdate = true;
+                points.geometry.attributes.color.needsUpdate = true;
+            }
+        }
+
+        function updateSingleParticle(params, forceColorUpdate = false) {
+            if (!points || !points.geometry) return;
+            const { a, b, c, d, e, f } = params;
+            const positions = points.geometry.attributes.position.array;
+            const colorsAttribute = points.geometry.attributes.color.array;
+            const nextX = Math.sin(a * currentY) - Math.cos(b * currentX);
+            const nextY = Math.sin(c * currentX) - Math.cos(d * currentY);
+            const nextZ = Math.sin(e * currentX) - Math.cos(f * currentZ); 
+            currentX = nextX; currentY = nextY; currentZ = nextZ;
+            const index = particleCursor * 3;
+            positions[index] = currentX * currentParticleEffectScale;
+            positions[index + 1] = currentY * currentParticleEffectScale;
+            positions[index + 2] = currentZ * currentParticleEffectScale;
+            const tempColor = new THREE.Color();
+            const dist = (Math.sqrt(currentX*currentX + currentY*currentY + currentZ*currentZ) / (currentParticleEffectScale * 1.5) ) % 1.0;
+            if (colorPalette.length > 0) {
+                if (colorPalette.length === 1) tempColor.copy(colorPalette[0]);
+                else {
+                    const scaledDist = dist * (colorPalette.length - 1);
+                    const colorIndex1 = Math.floor(scaledDist);
+                    const colorIndex2 = Math.min(colorIndex1 + 1, colorPalette.length - 1);
+                    const lerpFactor = scaledDist - colorIndex1;
+                    if (colorPalette[colorIndex1] && colorPalette[colorIndex2]) tempColor.lerpColors(colorPalette[colorIndex1], colorPalette[colorIndex2], lerpFactor);
+                    else if (colorPalette[colorIndex1]) tempColor.copy(colorPalette[colorIndex1]);
+                    else tempColor.setRGB(1,1,1); 
+                }
+            } else tempColor.setRGB(1,1,1);
+            const baseHsl = { h: 0, s: 0, l: 0 };
+            tempColor.getHSL(baseHsl);
+            if (baseHsl.s > 0.15 && baseHsl.l > 0.1 && baseHsl.l < 0.9) {
+                const normalizedCursor = particleCursor / particleCount;
+                const hueShiftAmount = 0.08; 
+                const hueOffset = Math.sin(normalizedCursor * Math.PI * 2) * hueShiftAmount;
+                let newHue = (baseHsl.h + hueOffset + 1) % 1; 
+                tempColor.setHSL(newHue, baseHsl.s, baseHsl.l);
+            }
+            colorsAttribute[index] = tempColor.r;
+            colorsAttribute[index + 1] = tempColor.g;
+            colorsAttribute[index + 2] = tempColor.b;
+            particleCursor = (particleCursor + 1) % particleCount;
+        }
+
+        function updateParticles(time) {
+            if (!points || !points.geometry || generateButton.disabled) return; 
+            const timeFactor = time * animationConfig.speed; 
+            const amp = animationConfig.amplitude; 
+            const animatedParams = {
+                a: attractorParams.a + Math.sin(timeFactor * 0.71 + 1.0) * amp * 0.9, 
+                b: attractorParams.b + Math.cos(timeFactor * 0.83 + 2.0) * amp * 1.1,
+                c: attractorParams.c + Math.sin(timeFactor * 0.97 + 3.0) * amp * 0.8,
+                d: attractorParams.d + Math.cos(timeFactor * 1.03 + 4.0) * amp * 1.2,
+                e: attractorParams.e + Math.sin(timeFactor * 1.13 + 5.0) * amp * 0.7,
+                f: attractorParams.f + Math.cos(timeFactor * 1.27 + 6.0) * amp * 1.0
+            };
+            for (let i = 0; i < particlesPerFrame; i++) updateSingleParticle(animatedParams);
+            points.geometry.attributes.position.needsUpdate = true;
+            points.geometry.attributes.color.needsUpdate = true;
+        }
+
+        async function generateParamsFromPrompt() {
+            if (!ai) {
+                 showError("Gemini API 호출 실패: API 키가 유효하지 않거나 설정되지 않았습니다. API 키를 확인하고 저장해주세요.");
+                 setLoadingState(false);
+                 return;
+            }
+            if (promptInput.value.trim() === '') {
+                promptInput.value = placeholderPrompts[Math.floor(Math.random() * placeholderPrompts.length)];
+            }
+            const userPrompt = promptInput.value;
+            if (!userPrompt) { 
+                showError("프랙탈에 대한 설명을 입력해주세요.");
+                return;
+            }
+            setLoadingState(true);
+            fractalNameDiv.style.opacity = 0; 
+            fractalDescriptionDiv.style.opacity = 0;
+            const systemInstruction = `You are a creative assistant for a 3D De Jong Attractor fractal art generator. Based on the user's prompt, generate a cohesive artistic package.
+Your output MUST be a single, valid JSON object. Do not include any text outside the JSON object, like "Sure, here is the JSON:".
+The JSON object must follow this schema:
+{
+  "shape": {"a": "float", "b": "float", "c": "float", "d": "float", "e": "float", "f": "float"},
+  "colors": "array of 3 to 5 hex color strings", "name": "short, artistic, evocative title in Korean (max 10 words)",
+  "description": "one or two-sentence poetic or evocative description in Korean (max 30 words)",
+  "animation": {"speed": "float (0.00001-0.0005)", "amplitude": "float (0.0-1.0)"},
+  "particleShape": "string, one of ['softSphere', 'square', 'star', 'sparkle'], optional."
+}`;
+            const fullPromptForGeneration = `${systemInstruction}\n\nUser's description: "${userPrompt}"`;
+            try {
+                const response = await ai.models.generateContent({
+                    model: "gemini-2.5-flash-preview-04-17",
+                    contents: [{ role: "user", parts: [{ text: fullPromptForGeneration }] }],
+                    config: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { shape: { type: "OBJECT", properties: { a: { "type": "NUMBER" }, b: { "type": "NUMBER" }, c: { "type": "NUMBER" }, d: { "type": "NUMBER" }, e: { "type": "NUMBER" }, f: { "type": "NUMBER" } }, required: ["a", "b", "c", "d", "e", "f"] }, colors: { type: "ARRAY", items: { "type": "STRING", "pattern": "^#[0-9a-fA-F]{6}$" }, minItems: 3, maxItems: 5 }, name: { "type": "STRING" }, description: { "type": "STRING" }, animation: { type: "OBJECT", properties: { speed: { "type": "NUMBER" }, amplitude: { "type": "NUMBER" } }, required: ["speed", "amplitude"] }, particleShape: { type: "STRING", enum: ["softSphere", "square", "star", "sparkle"] } }, required: ["shape", "colors", "name", "description", "animation"] } }
+                });
+                let aiResponseText = response.text.trim();
+                const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
+                const match = aiResponseText.match(fenceRegex);
+                if (match && match[2]) aiResponseText = match[2].trim();
+                const aiResponse = JSON.parse(aiResponseText);
+                if (!aiResponse.shape || !aiResponse.colors || !aiResponse.name || !aiResponse.description || !aiResponse.animation) throw new Error("API 응답에서 필수 필드가 누락되었습니다.");
+                if (aiResponse.colors.length < 3 || aiResponse.colors.length > 5) throw new Error(`API 응답의 색상 팔레트는 3~5개의 색상을 포함해야 합니다. (받은 개수: ${aiResponse.colors.length})`);
+                if (typeof aiResponse.animation.speed !== 'number' || typeof aiResponse.animation.amplitude !== 'number') throw new Error("API 응답의 애니메이션 파라미터가 유효한 숫자가 아닙니다.");
+                aiResponse.animation.speed = Math.max(0.00001, Math.min(0.0005, aiResponse.animation.speed));
+                aiResponse.animation.amplitude = Math.max(0.0, Math.min(1.0, aiResponse.animation.amplitude));
+                attractorParams = aiResponse.shape;
+                colorPalette = aiResponse.colors.map(c => new THREE.Color(c));
+                animationConfig = aiResponse.animation;
+                updateColorPaletteDisplay(aiResponse.colors); 
+                if (aiResponse.particleShape && ['softSphere', 'square', 'star', 'sparkle'].includes(aiResponse.particleShape)) applyParticleShape(aiResponse.particleShape);
+                else applyParticleShape('softSphere'); 
+                fractalNameDiv.textContent = aiResponse.name;
+                fractalDescriptionDiv.textContent = aiResponse.description;
+                regenerateAllParticles(); 
+                updatePanelFromCurrentParams(); 
+                fractalNameDiv.style.opacity = 1; 
+                fractalDescriptionDiv.style.opacity = 1;
+            } catch (error) {
+                console.error('Error calling Gemini API for full generation:', error);
+                let errorMessage = "새 프랙탈 생성에 실패했습니다.";
+                if (error.message) errorMessage += ` 세부 정보: ${error.message}`;
+                showError(errorMessage);
+                fractalNameDiv.textContent = "오류 발생";
+                fractalDescriptionDiv.textContent = "프랙탈 생성 중 문제가 발생했습니다.";
+                fractalNameDiv.style.opacity = 1;
+                fractalDescriptionDiv.style.opacity = 1;
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        function animate(time) { 
+            requestAnimationFrame(animate);
+            if (!points || !renderer || !scene || !camera || !composer) return;
+            updateParticles(time); 
+            points.rotation.y += (rotationY - points.rotation.y) * 0.05;
+            points.rotation.x += (rotationX - points.rotation.x) * 0.05;
+            if (bloomPass) {
+                const baseBloomStrength = 0.18; 
+                bloomPass.strength = baseBloomStrength + Math.sin(time * 0.0005) * 0.05 + Math.sin(time * 0.0012) * 0.03;
+            }
+            currentParticleEffectScale = baseParticleScale + Math.sin(time * 0.0003) * (0.05 * baseParticleScale);
+            composer.render();
+        }
+        
+        function setLoadingState(isLoading) {
+            const aiReady = !!ai;
+            const envKeyInUseAndValid = apiKeyInput.hasAttribute('readonly');
+
+            generateButton.disabled = isLoading || !aiReady;
+            promptInput.disabled = isLoading || !aiReady;
+            saveToLibraryButton.disabled = isLoading || !aiReady; 
+            
+            buttonText.classList.toggle('hidden', isLoading);
+            loader.classList.toggle('hidden', !isLoading);
+
+            applyManualParamsButton.disabled = isLoading; 
+            applyParamsToTitleButton.disabled = isLoading || !aiReady;
+            resetToCurrentParamsButton.disabled = isLoading; 
+
+            Object.values(manualParamInputs).forEach(inputGroup => {
+                if (!inputGroup) return;
+                if (inputGroup.range) inputGroup.range.disabled = isLoading;
+                if (inputGroup.num) inputGroup.num.disabled = isLoading;
+                if (inputGroup.select) inputGroup.select.disabled = isLoading;
+            });
+
+            if (!envKeyInUseAndValid) {
+                if (apiKeyInput) apiKeyInput.disabled = isLoading;
+                if (saveApiKeyButton) saveApiKeyButton.disabled = isLoading;
+            }
+        }
+        
+        function showError(message, isSuccess = false) {
+            if (!errorMessageDiv) return;
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+            if (isSuccess) {
+                errorMessageDiv.classList.remove('bg-red-500');
+                errorMessageDiv.classList.add('bg-green-500');
+            } else {
+                errorMessageDiv.classList.remove('bg-green-500');
+                errorMessageDiv.classList.add('bg-red-500');
+            }
+            setTimeout(() => {
+                errorMessageDiv.classList.add('hidden');
+                errorMessageDiv.classList.remove('bg-green-500'); 
+                errorMessageDiv.classList.add('bg-red-500');
+            }, isSuccess ? 4000 : 7000); 
+        }
+
+        function toggleManualControlsPanel() {
+            manualControlsPanel.classList.toggle('open');
+            if (manualControlsPanel.classList.contains('open')) {
+                updatePanelFromCurrentParams();
+                if (libraryPanel.classList.contains('open')) {
+                    libraryPanel.classList.remove('open');
+                }
+            }
+        }
+
+        function updatePanelFromCurrentParams() {
+            Object.keys(attractorParams).forEach(key => {
+                if (manualParamInputs[key] && manualParamInputs[key].range) {
+                    manualParamInputs[key].range.value = attractorParams[key];
+                    manualParamInputs[key].num.value = attractorParams[key];
+                    manualParamInputs[key].val.textContent = parseFloat(attractorParams[key]).toFixed(2);
+                }
+            });
+            if (manualParamInputs.speed && manualParamInputs.speed.range) {
+                 manualParamInputs.speed.range.value = animationConfig.speed;
+                 manualParamInputs.speed.num.value = animationConfig.speed;
+                 manualParamInputs.speed.val.textContent = parseFloat(animationConfig.speed).toExponential(2);
+            }
+            if (manualParamInputs.amplitude && manualParamInputs.amplitude.range) {
+                manualParamInputs.amplitude.range.value = animationConfig.amplitude;
+                manualParamInputs.amplitude.num.value = animationConfig.amplitude;
+                manualParamInputs.amplitude.val.textContent = parseFloat(animationConfig.amplitude).toFixed(2);
+            }
+            if (manualParamInputs.particleSize && manualParamInputs.particleSize.range) {
+                manualParamInputs.particleSize.range.value = particleRenderSize;
+                manualParamInputs.particleSize.num.value = particleRenderSize;
+                manualParamInputs.particleSize.val.textContent = parseFloat(particleRenderSize).toFixed(3);
+                if(material) material.size = particleRenderSize;
+            }
+            if (manualParamInputs.particleShape && manualParamInputs.particleShape.select) {
+                manualParamInputs.particleShape.select.value = currentParticleShape;
+                const selectedOption = manualParamInputs.particleShape.select.options[manualParamInputs.particleShape.select.selectedIndex];
+                manualParamInputs.particleShape.label.textContent = selectedOption ? selectedOption.text : currentParticleShape;
+            }
+            updateColorPaletteDisplay(colorPalette.map(c => `#${c.getHexString()}`));
+        }
+
+        function applyCurrentManualParamsToFractal() {
+            attractorParams.a = parseFloat(manualParamInputs.a.num.value);
+            attractorParams.b = parseFloat(manualParamInputs.b.num.value);
+            attractorParams.c = parseFloat(manualParamInputs.c.num.value);
+            attractorParams.d = parseFloat(manualParamInputs.d.num.value);
+            attractorParams.e = parseFloat(manualParamInputs.e.num.value);
+            attractorParams.f = parseFloat(manualParamInputs.f.num.value);
+            animationConfig.speed = parseFloat(manualParamInputs.speed.num.value);
+            animationConfig.amplitude = parseFloat(manualParamInputs.amplitude.num.value);
+            const newParticleSize = parseFloat(manualParamInputs.particleSize.num.value);
+            if (particleRenderSize !== newParticleSize) {
+                particleRenderSize = newParticleSize;
+                if (material) material.size = particleRenderSize;
+            }
+            const newParticleShape = manualParamInputs.particleShape.select.value;
+            if (currentParticleShape !== newParticleShape) applyParticleShape(newParticleShape);
+            regenerateAllParticles();
+            updatePanelFromCurrentParams();
+        }
+
+        function applyManualParams() {
+            applyCurrentManualParamsToFractal();
+            fractalNameDiv.textContent = "수동 설정 프랙탈";
+            fractalDescriptionDiv.textContent = "파라미터가 수동으로 조정되었습니다.";
+            fractalNameDiv.style.opacity = 1;
+            fractalDescriptionDiv.style.opacity = 1;
+        }
+
+        async function applyParamsToTitle() {
+             if (!ai) {
+                 showError("Gemini API 호출 실패: API 키가 유효하지 않거나 설정되지 않았습니다. API 키를 확인하고 저장해주세요.");
+                 setLoadingState(false); return;
+            }
+            setLoadingState(true);
+            fractalNameDiv.style.opacity = 0; 
+            fractalDescriptionDiv.style.opacity = 0;
+            applyCurrentManualParamsToFractal();
+            const currentParamsData = { shape: attractorParams, animation: animationConfig, particleRenderSize: particleRenderSize, particleShape: currentParticleShape, colors: colorPalette.map(c => `#${c.getHexString()}`) };
+            const systemInstructionForNaming = `You are a creative assistant. Based on the provided De Jong attractor parameters, animation settings, particle appearance, and color palette that define an existing fractal, generate ONLY an artistic Korean name and a short, poetic Korean description for this visual.
+Your output MUST be a single, valid JSON object with {"name": "Korean name (max 10 words)", "description": "Korean description (max 30 words)"}.`;
+            const promptForNaming = `${systemInstructionForNaming}\n\nFractal Data: ${JSON.stringify(currentParamsData)}`;
+            try {
+                const response = await ai.models.generateContent({
+                    model: "gemini-2.5-flash-preview-04-17",
+                    contents: [{ role: "user", parts: [{ text: promptForNaming }] }],
+                    config: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { name: { "type": "STRING" }, description: { "type": "STRING" } }, required: ["name", "description"] } }
+                });
+                let aiResponseText = response.text.trim();
+                const match = aiResponseText.match(/^```(\w*)?\s*\n?(.*?)\n?\s*```$/s);
+                if (match && match[2]) aiResponseText = match[2].trim();
+                const aiNameDescResponse = JSON.parse(aiResponseText);
+                if (!aiNameDescResponse.name || !aiNameDescResponse.description) throw new Error("AI 응답에서 이름 또는 설명이 누락되었습니다.");
+                fractalNameDiv.textContent = aiNameDescResponse.name;
+                fractalDescriptionDiv.textContent = aiNameDescResponse.description;
+            } catch (error) {
+                console.error('Error calling Gemini API for naming/description:', error);
+                showError(`AI 이름/설명 생성 실패: ${error.message}`);
+                fractalNameDiv.textContent = "수동 설정 (AI 이름 오류)";
+                fractalDescriptionDiv.textContent = `파라미터 적용됨.`;
+            } finally {
+                fractalNameDiv.style.opacity = 1;
+                fractalDescriptionDiv.style.opacity = 1;
+                setLoadingState(false);
+            }
+        }
+
+        function setupManualControlListeners() {
+            toggleManualControlsButton.addEventListener('click', toggleManualControlsPanel);
+            applyManualParamsButton.addEventListener('click', applyManualParams);
+            applyParamsToTitleButton.addEventListener('click', applyParamsToTitle);
+            resetToCurrentParamsButton.addEventListener('click', updatePanelFromCurrentParams);
+            Object.entries(manualParamInputs).forEach(([key, group]) => {
+                if (!group || !group.range) return; 
+                group.range.addEventListener('input', () => {
+                    const val = parseFloat(group.range.value);
+                    group.num.value = val;
+                    if (key === 'speed') group.val.textContent = val.toExponential(2);
+                    else if (key === 'particleSize') group.val.textContent = val.toFixed(3);
+                    else group.val.textContent = val.toFixed(2);
+                });
+                group.num.addEventListener('input', () => {
+                    let val = parseFloat(group.num.value);
+                    const min = parseFloat(group.range.min); const max = parseFloat(group.range.max);
+                    if (isNaN(val)) val = min; val = Math.max(min, Math.min(max, val)); 
+                    group.range.value = val; group.num.value = val; 
+                    if (key === 'speed') group.val.textContent = val.toExponential(2);
+                    else if (key === 'particleSize') group.val.textContent = val.toFixed(3);
+                    else group.val.textContent = val.toFixed(2);
+                });
+                if (group.select) group.select.addEventListener('change', () => {
+                    const selectedOption = group.select.options[group.select.selectedIndex];
+                    group.label.textContent = selectedOption ? selectedOption.text : group.select.value;
+                });
+            });
+        }
+        
+        function addEventListeners() {
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('mousedown', onMouseDown, false);
+            document.addEventListener('mouseup', onMouseUp, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+            window.addEventListener('wheel', onMouseWheel, { passive: false }); 
+            document.addEventListener('touchstart', onTouchStart, { passive: false });
+            document.addEventListener('touchend', onTouchEnd, false);
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            
+            generateButton.addEventListener('click', generateParamsFromPrompt);
+            promptInput.addEventListener('keyup', (e) => { if (e.key === 'Enter' && !generateButton.disabled) generateParamsFromPrompt(); });
+            
+            setupManualControlListeners(); 
+            
+            // Library event listeners
+            toggleLibraryButton.addEventListener('click', toggleLibraryPanel);
+            saveToLibraryButton.addEventListener('click', saveCurrentFractal);
+            exportLibraryButton.addEventListener('click', exportLibrary);
+            importLibraryInput.addEventListener('change', importLibrary);
+        }
+
+        function onWindowResize() {
+            if (!camera || !renderer || !composer || !bloomPass) return;
+            const width = window.innerWidth; const height = window.innerHeight;
+            camera.aspect = width / height; camera.updateProjectionMatrix();
+            renderer.setSize(width, height); composer.setSize(width, height);
+            bloomPass.resolution.set(width, height); 
+        }
+        
+        function isEventInSidePanels(eventTarget) { 
+            const inManualControls = manualControlsPanel.contains(eventTarget) || toggleManualControlsButton.contains(eventTarget);
+            const inLibrary = libraryPanel.contains(eventTarget) || toggleLibraryButton.contains(eventTarget);
+            const inLibraryButtons = exportLibraryButton.contains(eventTarget) || document.getElementById('importLibraryLabel').contains(eventTarget); // Check label for import
+            return inManualControls || inLibrary || inLibraryButtons;
+        }
+
+        function onMouseDown(event) { if (isEventInSidePanels(event.target) || event.target === promptInput || event.target === generateButton || generateButton.contains(event.target) || saveToLibraryButton.contains(event.target) || event.target === apiKeyInput || event.target === saveApiKeyButton) return; isMouseDown = true; lastMouseX = event.clientX; lastMouseY = event.clientY; }
+        function onMouseUp() { isMouseDown = false; }
+        function onMouseMove(event) { if (isEventInSidePanels(event.target) || !isMouseDown) return; const deltaX = event.clientX - lastMouseX; const deltaY = event.clientY - lastMouseY; rotationY += deltaX * 0.005; rotationX += deltaY * 0.005; lastMouseX = event.clientX; lastMouseY = event.clientY; }
+        function onMouseWheel(event) { if (isEventInSidePanels(event.target) || event.target === promptInput || event.target === generateButton || generateButton.contains(event.target) || saveToLibraryButton.contains(event.target) || event.target === apiKeyInput || event.target === saveApiKeyButton) return; event.preventDefault(); if (!camera) return; camera.position.z += event.deltaY * 0.01; camera.position.z = THREE.MathUtils.clamp(camera.position.z, 0.33, 25); }
+        function onTouchStart(event) { if (isEventInSidePanels(event.target) || event.target === promptInput || event.target === generateButton || generateButton.contains(event.target) || saveToLibraryButton.contains(event.target) || event.target === apiKeyInput || event.target === saveApiKeyButton) return; if (event.touches.length === 1) { event.preventDefault(); isMouseDown = true; lastMouseX = event.touches[0].clientX; lastMouseY = event.touches[0].clientY; } else if (event.touches.length === 2) { event.preventDefault(); const dx = event.touches[0].clientX - event.touches[1].clientX; const dy = event.touches[0].clientY - event.touches[1].clientY; initialPinchDistance = Math.sqrt(dx * dx + dy * dy); } }
+        function onTouchEnd(event) { isMouseDown = false; initialPinchDistance = 0; }
+        function onTouchMove(event) { if (isEventInSidePanels(event.target)) return; event.preventDefault(); if (!camera) return; if (event.touches.length === 1 && isMouseDown) { const deltaX = event.touches[0].clientX - lastMouseX; const deltaY = event.touches[0].clientY - lastMouseY; rotationY += deltaX * 0.005; rotationX += deltaY * 0.005; lastMouseX = event.touches[0].clientX; lastMouseY = event.touches[0].clientY; } else if (event.touches.length === 2 && initialPinchDistance > 0) { const dx = event.touches[0].clientX - event.touches[1].clientX; const dy = event.touches[0].clientY - event.touches[1].clientY; const currentPinchDistance = Math.sqrt(dx * dx + dy * dy); const deltaDistance = initialPinchDistance - currentPinchDistance; camera.position.z += deltaDistance * 0.05; camera.position.z = THREE.MathUtils.clamp(camera.position.z, 0.33, 25); initialPinchDistance = currentPinchDistance; } }
+
+        init();
+        if (renderer) animate(0); 
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
