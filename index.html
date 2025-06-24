@@ -1201,7 +1201,7 @@ The JSON object must follow this schema:
             const fullPromptForGeneration = `${systemInstruction}\n\nUser's description: "${userPrompt}"`;
             try {
                 const response = await ai.models.generateContent({
-                    model: "gemini-2.5-flash-preview-04-17",
+                    model: "gemini-2.5-flash",
                     contents: [{ role: "user", parts: [{ text: fullPromptForGeneration }] }],
                     config: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { shape: { type: "OBJECT", properties: { a: { "type": "NUMBER" }, b: { "type": "NUMBER" }, c: { "type": "NUMBER" }, d: { "type": "NUMBER" }, e: { "type": "NUMBER" }, f: { "type": "NUMBER" } }, required: ["a", "b", "c", "d", "e", "f"] }, colors: { type: "ARRAY", items: { "type": "STRING", "pattern": "^#[0-9a-fA-F]{6}$" }, minItems: 3, maxItems: 5 }, name: { "type": "STRING" }, description: { "type": "STRING" }, animation: { type: "OBJECT", properties: { speed: { "type": "NUMBER" }, amplitude: { "type": "NUMBER" } }, required: ["speed", "amplitude"] }, particleShape: { type: "STRING", enum: ["softSphere", "square", "star", "sparkle"] } }, required: ["shape", "colors", "name", "description", "animation"] } }
                 });
@@ -1389,7 +1389,7 @@ Your output MUST be a single, valid JSON object with {"name": "Korean name (max 
             const promptForNaming = `${systemInstructionForNaming}\n\nFractal Data: ${JSON.stringify(currentParamsData)}`;
             try {
                 const response = await ai.models.generateContent({
-                    model: "gemini-2.5-flash-preview-04-17",
+                    model: "gemini-2.5-flash",
                     contents: [{ role: "user", parts: [{ text: promptForNaming }] }],
                     config: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { name: { "type": "STRING" }, description: { "type": "STRING" } }, required: ["name", "description"] } }
                 });
