@@ -1,0 +1,471 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ AI 기반 3D 프랙탈 아트 (스토리 & 애니메이션 생성)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+            font-family: 'Inter', 'Pretendard', sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .text-overlay {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.95); /* Slightly more opaque */
+            z-index: 100;
+            pointer-events: none;
+            transition: opacity 0.7s ease-in-out;
+        }
+        #info {
+            top: 15px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+            text-shadow: 0 0 8px rgba(0,0,0,0.6);
+        }
+        #fractal-name {
+            top: 45px;
+            font-size: 1.6rem; /* Slightly larger */
+            font-weight: 500;
+            text-shadow: 0 0 12px rgba(0, 0, 0, 0.8), 0 0 3px rgba(0,0,0,0.6); /* Softer glow */
+        }
+        #fractal-description {
+            top: 85px; /* Adjusted position */
+            font-size: 1rem;
+            font-weight: 300;
+            line-height: 1.6;
+            text-shadow: 0 0 12px rgba(0, 0, 0, 0.8), 0 0 3px rgba(0,0,0,0.6); /* Softer glow */
+        }
+        .color-swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #60a5fa; /* Lighter blue */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Common Panel Styles */
+        .side-panel {
+            position: fixed;
+            top: 0;
+            width: 300px; /* Default width, can be overridden */
+            height: 100%;
+            background-color: rgba(20, 22, 40, 0.97); /* Slightly more opaque for better readability */
+            backdrop-filter: blur(10px); /* Enhanced blur */
+            z-index: 200;
+            transition: transform 0.3s ease-in-out;
+            padding: 20px;
+            padding-bottom: 80px; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.7); /* Softer, wider shadow */
+            overflow-y: auto;
+            color: #e0e0f0; 
+        }
+        .side-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        .side-panel::-webkit-scrollbar-track {
+            background: #1f223d; /* Darker track */
+        }
+        .side-panel::-webkit-scrollbar-thumb {
+            background: #4a4d6a; /* Lighter thumb */
+            border-radius: 4px;
+        }
+        .side-panel::-webkit-scrollbar-thumb:hover {
+            background: #5f6282;
+        }
+
+        #manualControlsPanel {
+            left: 0;
+            transform: translateX(-100%);
+        }
+        #manualControlsPanel.open { 
+            transform: translateX(0);
+        }
+
+        #libraryPanel {
+            right: 0;
+            transform: translateX(100%);
+            width: 320px; 
+        }
+        #libraryPanel.open { 
+            transform: translateX(0);
+        }
+
+
+        .top-left-button {
+            position: fixed;
+            top: 10px;
+            z-index: 210;
+            background-color: rgba(30, 35, 60, 0.85); 
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px; 
+            line-height: 40px; 
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+        .top-left-button:hover {
+            background-color: rgba(45, 50, 80, 0.95);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+        }
+        #toggleManualControlsButton {
+            left: 10px;
+        }
+        #toggleLibraryButton {
+            left: 60px; 
+        }
+
+        .param-group {
+            margin-bottom: 1rem;
+        }
+        .param-group label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-size: 0.85rem;
+            color: #a0a0c0; 
+        }
+        .param-group input[type="range"] {
+            width: 100%;
+            accent-color: #60a5fa; 
+        }
+        .param-group input[type="number"], .param-group select {
+            width: 100%;
+            background-color: #1f223d; 
+            border: 1px solid #3a3d5a; 
+            color: #e0e0f0;
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+        .panel-button {
+            width: 100%;
+            padding: 0.6rem;
+            border-radius: 5px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            margin-top: 0.5rem;
+            cursor: pointer;
+        }
+        .panel-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #controls { 
+            background: linear-gradient(to top, rgba(10, 10, 25, 0.9) 0%, rgba(10, 10, 25, 0.7) 100%);
+        }
+        #promptInput {
+             background-color: rgba(25, 30, 55, 0.8); 
+             border-color: rgba(60, 65, 90, 0.8);
+        }
+        #generateButton, #saveToLibraryButton {
+            background-color: #3b82f6; 
+            color: white;
+            font-weight: bold;
+            padding: 0.5rem 0.75rem; 
+            border-radius: 0.5rem; 
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem; 
+        }
+        #generateButton:hover, #saveToLibraryButton:hover {
+            background-color: #2563eb; 
+        }
+        #generateButton:disabled {
+            background-color: #374151;
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        #saveToLibraryButton {
+             background-color: #10b981; 
+        }
+        #saveToLibraryButton:hover {
+            background-color: #059669; 
+        }
+         #saveToLibraryButton:disabled {
+            background-color: #374151;
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        #saveToLibraryButton svg {
+            width: 1.25em; 
+            height: 1.25em; 
+        }
+
+
+        #apiKeyInput {
+            background-color: rgba(25, 30, 55, 0.8); 
+            border-color: rgba(60, 65, 90, 0.8);
+        }
+        #apiKeyInput:read-only {
+            background-color: rgba(40, 45, 70, 0.8);
+            cursor: not-allowed;
+        }
+        #saveApiKeyButton {
+             background-color: #10b981; 
+        }
+        #saveApiKeyButton:hover {
+            background-color: #059669; 
+        }
+        #saveApiKeyButton:disabled {
+            background-color: #374151; 
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        /* Library Panel Specific Styles */
+        .library-item {
+            background-color: rgba(30, 35, 60, 0.7);
+            border: 1px solid rgba(60, 65, 90, 0.8);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            color: #d0d0e0;
+        }
+        .library-item-name {
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: #a7c5eb; 
+            margin-bottom: 6px;
+        }
+        .library-item-details {
+            font-size: 0.75rem;
+            color: #8080a0;
+            margin-bottom: 8px;
+        }
+        .library-item-colors {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+        .library-item-colors .color-swatch {
+            width: 16px;
+            height: 16px;
+        }
+        .library-item-actions button {
+            background-color: #3b82f6; 
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 6px;
+            border: none;
+            cursor: pointer;
+        }
+        .library-item-actions button.delete-btn {
+            background-color: #ef4444; 
+        }
+        .library-item-actions button.delete-btn:hover {
+            background-color: #dc2626; 
+        }
+        .library-item-actions button:hover {
+            background-color: #2563eb; 
+        }
+        #libraryPanel h3 {
+             color: #60a5fa; 
+        }
+
+        #exportLibraryButton, #importLibraryLabel {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            display: block; /* Make label block for full width */
+            text-align: center;
+        }
+        #exportLibraryButton {
+             background-color: #059669; /* emerald-600 */
+             color: white;
+        }
+        #exportLibraryButton:hover {
+             background-color: #047857; /* emerald-700 */
+        }
+        #exportLibraryButton:disabled {
+            background-color: #4b5563; /* gray-600 */
+        }
+
+        #importLibraryLabel {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+        }
+        #importLibraryLabel:hover {
+            background-color: #2563eb; /* blue-600 */
+        }
+        #importLibraryInput {
+            display: none; /* Hide the actual file input */
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "three": "https://esm.sh/three@^0.177.0",
+    "three/": "https://esm.sh/three@^0.177.0/"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-C7UeSB5V.js"></script>
+</head>
+<body class="bg-black">
+    <button id="toggleManualControlsButton" class="top-left-button" title="수동 제어판 열기/닫기">☰</button>
+    <button id="toggleLibraryButton" class="top-left-button" title="프랙탈 라이브러리 열기/닫기">📚</button>
+
+    <div id="manualControlsPanel" class="side-panel">
+        <h3 class="text-lg font-semibold mb-4 text-blue-400 border-b border-gray-600 pb-2">수동 파라미터 조작</h3>
+        
+        <div class="param-group">
+            <h4 class="text-md font-medium mb-2 text-gray-400">형태 (De Jong Attractor)</h4>
+            <div data-param="a">
+                <label for="param_a">a: <span class="value_a">0</span></label>
+                <input type="range" id="param_a" min="-3" max="3" step="0.01">
+                <input type="number" id="num_a" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="b" class="mt-2">
+                <label for="param_b">b: <span class="value_b">0</span></label>
+                <input type="range" id="param_b" min="-3" max="3" step="0.01">
+                <input type="number" id="num_b" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="c" class="mt-2">
+                <label for="param_c">c: <span class="value_c">0</span></label>
+                <input type="range" id="param_c" min="-3" max="3" step="0.01">
+                <input type="number" id="num_c" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="d" class="mt-2">
+                <label for="param_d">d: <span class="value_d">0</span></label>
+                <input type="range" id="param_d" min="-3" max="3" step="0.01">
+                <input type="number" id="num_d" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="e" class="mt-2">
+                <label for="param_e">e: <span class="value_e">0</span></label>
+                <input type="range" id="param_e" min="-3" max="3" step="0.01">
+                <input type="number" id="num_e" min="-3" max="3" step="0.01">
+            </div>
+            <div data-param="f" class="mt-2">
+                <label for="param_f">f: <span class="value_f">0</span></label>
+                <input type="range" id="param_f" min="-3" max="3" step="0.01">
+                <input type="number" id="num_f" min="-3" max="3" step="0.01">
+            </div>
+        </div>
+
+        <div class="param-group">
+            <h4 class="text-md font-medium mb-2 mt-3 text-gray-400">애니메이션</h4>
+            <div data-param="speed">
+                <label for="param_speed">Speed: <span class="value_speed">0</span></label>
+                <input type="range" id="param_speed" min="0.00001" max="0.0005" step="0.00001">
+                <input type="number" id="num_speed" min="0.00001" max="0.0005" step="0.00001">
+            </div>
+            <div data-param="amplitude" class="mt-2">
+                <label for="param_amplitude">Amplitude: <span class="value_amplitude">0</span></label>
+                <input type="range" id="param_amplitude" min="0" max="1" step="0.01">
+                <input type="number" id="num_amplitude" min="0" max="1" step="0.01">
+            </div>
+        </div>
+
+        <div class="param-group">
+            <h4 class="text-md font-medium mb-2 mt-3 text-gray-400">외형</h4>
+            <div data-param="particleSize">
+                <label for="param_particleSize">Particle Size: <span class="value_particleSize">0</span></label>
+                <input type="range" id="param_particleSize" min="0.005" max="0.1" step="0.001">
+                <input type="number" id="num_particleSize" min="0.005" max="0.1" step="0.001">
+            </div>
+             <div data-param="particleShape" class="mt-2">
+                <label for="param_particleShape">Particle Shape: <span class="value_particleShape_label">부드러운 구체</span></label>
+                <select id="param_particleShape">
+                    <option value="softSphere">부드러운 구체</option>
+                    <option value="square">사각형</option>
+                    <option value="star">별</option>
+                    <option value="sparkle">반짝이</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="param-group">
+            <h4 class="text-md font-medium mb-2 mt-3 text-gray-400">색상 팔레트 (AI 생성)</h4>
+            <div id="color-palette-display-panel" class="flex flex-wrap justify-start items-center gap-2 py-1">
+            </div>
+        </div>
+
+        <button id="applyManualParamsButton" class="panel-button bg-blue-500 hover:bg-blue-600 text-white">수동 적용</button>
+        <button id="applyParamsToTitleButton" class="panel-button bg-purple-500 hover:bg-purple-600 text-white">파라미터를 제목에 적용</button>
+        <button id="resetToCurrentParamsButton" class="panel-button bg-gray-600 hover:bg-gray-700 text-white">현재 설정으로 초기화</button>
+    </div>
+
+    <div id="libraryPanel" class="side-panel">
+        <h3 class="text-lg font-semibold mb-4 border-b border-gray-600 pb-2">내 프랙탈 라이브러리</h3>
+        <div id="libraryItemsContainer" class="space-y-3">
+            <!-- Library items will be dynamically inserted here -->
+        </div>
+        <p id="emptyLibraryMessage" class="text-gray-400 text-center py-4 hidden">라이브러리가 비어있습니다. 프랙탈을 생성하고 저장해보세요!</p>
+        
+        <button id="exportLibraryButton" class="panel-button">라이브러리 내보내기</button>
+        <input type="file" id="importLibraryInput" accept=".json">
+        <label for="importLibraryInput" id="importLibraryLabel" class="panel-button">라이브러리 가져오기</label>
+    </div>
+
+
+    <div id="info" class="text-overlay">드래그하여 회전 | 스크롤/핀치로 확대/축소</div>
+    <div id="fractal-name" class="text-overlay">초기 프랙탈</div>
+    <div id="fractal-description" class="text-overlay"></div>
+
+    <div id="controls" class="fixed bottom-0 left-0 w-full p-3 sm:p-4 backdrop-blur-sm z-50 flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-3">
+        <div id="apiKeySection" class="flex items-center gap-2 w-full sm:w-auto mb-2 sm:mb-0 max-w-md sm:max-w-sm md:max-w-md">
+            <input type="password" id="apiKeyInput" class="text-white border border-gray-600 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder="Gemini API 키">
+            <button id="saveApiKeyButton" class="text-white font-semibold py-2 px-3 rounded-lg text-sm whitespace-nowrap transition-colors">키 저장</button>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto max-w-md sm:max-w-none">
+            <input type="text" id="promptInput" class="text-white border rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="예: '폭풍 속의 등대'">
+            <button id="generateButton">
+                <span id="buttonText">✨ 생성</span>
+                <div id="loader" class="loader hidden"></div>
+            </button>
+            <button id="saveToLibraryButton" title="현재 프랙탈을 라이브러리에 저장">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                    <path d="M5.5 16.5A.5.5 0 0 1 5 16V4.5a2.5 2.5 0 0 1 5 0V16a.5.5 0 0 1-.5.5h-4Z" />
+                    <path d="M5 4.5a2.5 2.5 0 0 1 5 0v11.5a1.5 1.5 0 0 1-3 0V5.207a.5.5 0 0 0-.854-.353l-.942.942A2.502 2.502 0 0 1 5 4.5Z" />
+                    <path d="M12.5 3a2.5 2.5 0 0 0-2.5 2.5V17a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5V5.5A2.5 2.5 0 0 0 12.5 3Z" />
+                </svg>
+                <span>저장</span>
+            </button>
+        </div>
+    </div>
+    <div id="error-message" class="fixed bottom-24 sm:bottom-20 left-1/2 -translate-x-1/2 bg-red-500 text-white py-2 px-4 rounded-lg hidden z-50 text-sm"></div>
+
+</body>
+</html>
