@@ -2,7 +2,9 @@
 
 이 프로젝트는 사용자의 텍스트 프롬프트를 기반으로 Google Gemini AI를 사용하여 독특한 3D De Jong 프랙탈 아트, 색상 팔레트, 이름 및 스토리를 생성하는 인터랙티브 웹 애플리케이션입니다. 생성된 프랙탈은 Three.js를 사용하여 실시간으로 렌더링되며, 사용자는 다양한 파라미터를 수동으로 조작하여 자신만의 프랙탈 아트를 만들 수도 있습니다.
 
-실행 주소 : https://dev-canvas-pi.vercel.app/
+라이브 데모 : https://sigco3111.github.io/3d-fractal/
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-222222?style=for-the-badge&logo=githubpages)](https://sigco3111.github.io/3d-fractal/)
 
 ## 🌟 주요 기능
 
@@ -41,11 +43,13 @@
 
 ## 🚀 배포 및 실행 방법
 
-### Vercel에서 배포하기
+### GitHub Pages에서 배포하기
+
+이 저장소는 GitHub Actions 또는 수동 gh-pages 브랜치 푸시로 배포됩니다. `vite.config.ts`에 `base: '/3d-fractal/'`이 박혀 있어 빌드 결과가 gh-pages 서브경로에서 정상 작동합니다.
 
 1. **프로젝트 복제**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/sigco3111/3d-fractal.git
    cd 3d-fractal
    ```
 
@@ -55,7 +59,15 @@
    ```
 
 3. **환경 변수 설정**
-   - Vercel 대시보드에서 환경 변수 `GEMINI_API_KEY` 설정
+   - GitHub 저장소 Settings → Secrets and variables → Actions에서 `GEMINI_API_KEY` 시크릿 등록 (또는 로컬 실행 시 `.env.local`에 `GEMINI_API_KEY=...` 작성)
+
+4. **빌드 및 gh-pages 푸시 (수동)**
+   ```bash
+   npm run build
+   npx gh-pages -d dist
+   ```
+
+> **참고**: `vercel.json`은 Vercel 시절 보안 헤더(X-Frame-Options, X-Content-Type-Options) 및 `/favicon.ico` → `/favicon.svg` 리다이렉트 설정이 포함되어 있어 GitHub Pages로 이관(2026-08)된 시점에서도 보존됩니다. Pages는 `headers`/`redirects` 룰을 지원하지 않으므로 보안 헤더는 미적용 상태이나, 정적 자산에는 영향이 없습니다.
 
 
 ### 로컬 개발
